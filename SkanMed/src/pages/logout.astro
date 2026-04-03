@@ -1,0 +1,5 @@
+---
+// Logout: Eliminar cookie y redirigir
+Astro.cookies.delete('session_token', { path: '/' });
+return Astro.redirect('/');
+---

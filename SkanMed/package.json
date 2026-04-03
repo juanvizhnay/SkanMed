@@ -1,0 +1,40 @@
+{
+  "name": "skanmed-dashboard",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev --port 3000",
+    "start": "astro dev --port 3000",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^12.6.13",
+    "@astrojs/react": "^4.4.2",
+    "@astrojs/tailwind": "^5.1.5",
+    "@aws-sdk/client-s3": "^3.984.0",
+    "@neondatabase/serverless": "^1.0.2",
+    "@upstash/redis": "^1.37.0",
+    "astro": "^5.1.1",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "cookie": "^0.6.0",
+    "drizzle-orm": "^0.45.1",
+    "framer-motion": "^12.29.2",
+    "jose": "^6.2.2",
+    "lucide-react": "^0.471.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "resend": "^6.9.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss": "^3.4.19"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie": "^0.6.0",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "drizzle-kit": "^0.30.1"
+  }
+}

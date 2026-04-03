@@ -1,0 +1,68 @@
+---
+import '../styles/global.css';
+import { ViewTransitions } from 'astro:transitions';
+import { Activity } from 'lucide-react';
+
+interface Props {
+	title: string;
+  doctorSlug: string;
+  doctorName: string;
+}
+
+const { title, doctorSlug, doctorName } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es" class="dark">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <ViewTransitions />
+	</head>
+	<body class="bg-skan-950 text-slate-300 font-sans min-h-screen flex flex-col">
+
+    <!-- Navbar SkanMed -->
+    <nav class="sticky top-0 z-50 border-b border-white/5 bg-skan-950/80 backdrop-blur-md">
+      <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+        <!-- Logo Sistema -->
+        <a href={`/${doctorSlug}`} class="flex items-center gap-2 group">
+          <div class="bg-gradient-to-br from-skan-500 to-blue-600 p-2 rounded-lg text-white group-hover:scale-110 transition-transform">
+            <Activity size={24} />
+          </div>
+          <div class="leading-tight">
+            <h1 class="font-display font-bold text-white text-lg tracking-wide">SKAN<span class="text-skan-500">MED</span></h1>
+            <p class="text-[10px] text-slate-400 uppercase tracking-widest">Medical Suite</p>
+          </div>
+        </a>
+
+        <!-- Menú Navegación -->
+        <div class="hidden md:flex items-center gap-8">
+          <a href={`/${doctorSlug}`} class="text-sm font-medium hover:text-skan-400 transition-colors">Inicio</a>
+          <a href={`/${doctorSlug}/perfil`} class="text-sm font-medium hover:text-skan-400 transition-colors">Perfil Profesional</a>
+          <a href={`/${doctorSlug}/casos`} class="text-sm font-medium hover:text-skan-400 transition-colors">Casos Clínicos</a>
+        </div>
+
+        <!-- Botón Contacto Rápido -->
+        <a href={`/${doctorSlug}#contacto`} class="px-5 py-2 bg-white/5 hover:bg-skan-500 hover:text-white border border-white/10 rounded-full text-sm font-semibold transition-all">
+          Contactar
+        </a>
+      </div>
+    </nav>
+
+    <main class="flex-grow">
+		  <slot />
+    </main>
+
+    <footer class="border-t border-white/5 bg-skan-900 py-8 text-center text-sm text-slate-500 mt-20">
+      <p>&copy; {new Date().getFullYear()} Dr. {doctorName}</p>
+      <p class="mt-2 text-xs opacity-50">Powered by SkanMed Platform</p>
+    </footer>
+
+	</body>
+</html>

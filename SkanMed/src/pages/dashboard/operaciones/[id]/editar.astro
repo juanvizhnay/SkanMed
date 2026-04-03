@@ -1,0 +1,197 @@
+---
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import { Save, ArrowLeft, Trash2 } from 'lucide-react';
+import { getCurrentDoctor } from '../../../../lib/auth/session';
+import { db } from '../../../../lib/db';
+import { operations, patients } from '../../../../lib/schema';
+import { eq, and, asc } from 'drizzle-orm';
+import ImageUploader from '../../../../components/ImageUploader';
+
+const doctor = await getCurrentDoctor(Astro.cookies);
+if (!doctor) return Astro.redirect('/');
+
+const operationId = parseInt(Astro.params.id || '0');
+
+const [opResult, patientsList] = await Promise.all([
+  db.select().from(operations)
+    .where(and(eq(operations.id, operationId), eq(operations.doctor_id, doctor.id)))
+    .limit(1),
+  db.select({ id: patients.id, full_name: patients.full_name })
+    .from(patients)
+    .where(eq(patients.doctor_id, doctor.id))
+    .orderBy(asc(patients.full_name)),
+]);
+
+const operation = opResult[0];
+if (!operation) return Astro.redirect('/dashboard/operaciones');
+
+let error = "";
+
+// Lógica de actualización
+if (Astro.request.method === "POST") {
+  try {
+    const data = await Astro.request.formData();
+
+    const title = data.get("title")?.toString();
+    const category = data.get("category")?.toString();
+    const procedure_date = data.get("procedure_date")?.toString();
+    const description = data.get("description")?.toString();
+    const image_url_after = data.get("image_url")?.toString();
+    const is_public = data.get("is_public") === "on";
+
+    const patient_id = data.get("patient_id")?.toString();
+
+    await db.update(operations)
+      .set({
+        title: title!,
+        patient_id: patient_id ? parseInt(patient_id) : null,
+        category: category,
+        procedure_date: procedure_date,
+        description: description,
+        image_url_after: image_url_after,
+        is_public: is_public
+      })
+      .where(eq(operations.id, operationId));
+
+    return Astro.redirect("/dashboard/operaciones");
+
+  } catch (e: any) {
+    error = e.message || "Error al actualizar la operación";
+  }
+}
+---
+
+<DashboardLayout title="Editar Operación">
+    <div class="max-w-3xl mx-auto">
+
+        <div class="mb-8 flex items-center gap-4">
+            <a href="/dashboard/operaciones" class="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors">
+                <ArrowLeft size={20} />
+            </a>
+            <div>
+                <h1 class="text-2xl font-display font-bold text-white mb-1">Editar Caso Clínico</h1>
+                <p class="text-slate-400 text-sm">Actualice los detalles de la intervención.</p>
+            </div>
+        </div>
+
+        {error && (
+            <div class="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                {error}
+            </div>
+        )}
+
+        <form method="POST" class="space-y-6" id="operation-edit-form">
+
+            <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-6">
+                <h3 class="font-bold text-white text-sm border-b border-white/5 pb-4 mb-4">Detalles del Procedimiento</h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Título del Caso</label>
+                        <input type="text" name="title" required value={operation.title} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Categoría</label>
+                        <select name="category" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors appearance-none">
+                            <option value="Cerebro" selected={operation.category === 'Cerebro'}>Cerebro</option>
+                            <option value="Columna" selected={operation.category === 'Columna'}>Columna</option>
+                            <option value="Nervios Periféricos" selected={operation.category === 'Nervios Periféricos'}>Nervios Periféricos</option>
+                            <option value="Trauma" selected={operation.category === 'Trauma'}>Trauma</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fecha de Intervencion</label>
+                    <input type="date" name="procedure_date" value={operation.procedure_date} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+                  </div>
+
+                  <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Paciente Asociado (Opcional)</label>
+                    <select name="patient_id" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors appearance-none">
+                      <option value="">Sin paciente asociado</option>
+                      {patientsList.map(p => (
+                        <option value={p.id} selected={operation.patient_id === p.id}>{p.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Descripción Técnica / Resultado</label>
+                    <textarea name="description" rows="4" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{operation.description || ''}</textarea>
+                </div>
+            </div>
+
+            <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-6">
+                <h3 class="font-bold text-white text-sm border-b border-white/5 pb-4 mb-4">Evidencia Fotográfica</h3>
+
+                <ImageUploader
+                    client:only="react"
+                    onImageUploaded={(url) => {}}
+                    currentImageUrl={operation.image_url_after || ''}
+                    label="Imagen Post-Operatoria"
+                />
+
+                <p class="text-[10px] text-slate-500">
+                    La imagen será visible en tu landing page si la operación es pública.
+                </p>
+            </div>
+
+            <div class="bg-skan-900 border border-white/5 rounded-xl p-6 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-white text-sm">Visibilidad Pública</h3>
+                    <p class="text-xs text-slate-500">¿Desea que este caso aparezca en su Landing Page?</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="is_public" class="sr-only peer" checked={operation.is_public}>
+                    <div class="w-11 h-6 bg-skan-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-skan-500"></div>
+                </label>
+            </div>
+
+            <div class="flex justify-between gap-4 pt-4">
+                <a href="/dashboard/operaciones" class="px-6 py-3 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-bold py-3 px-8 rounded-lg transition-all shadow-[0_4px_20px_-2px_rgba(65,164,210,0.15)] flex items-center gap-2">
+                    <Save size={18} /> Guardar Cambios
+                </button>
+            </div>
+        </form>
+
+    </div>
+
+    <script>
+        const form = document.getElementById('operation-edit-form') as HTMLFormElement;
+
+        form?.addEventListener('submit', (e) => {
+            const title = (form.querySelector('[name="title"]') as HTMLInputElement)?.value.trim();
+
+            if (!title || title.length < 5) {
+                e.preventDefault();
+                alert('El título del caso debe tener al menos 5 caracteres');
+                return;
+            }
+
+            const imageUrl = (form.querySelector('[name="image_url"]') as HTMLInputElement)?.value.trim();
+            if (imageUrl && !imageUrl.match(/^(https?:\/\/.+|\/api\/image\/.+)/)) {
+                e.preventDefault();
+                alert('La URL de la imagen no es valida');
+                return;
+            }
+
+            const procedureDate = (form.querySelector('[name="procedure_date"]') as HTMLInputElement)?.value;
+            if (procedureDate) {
+                const date = new Date(procedureDate);
+                const today = new Date();
+                if (date > today) {
+                    e.preventDefault();
+                    alert('La fecha de intervención no puede ser futura');
+                    return;
+                }
+            }
+        });
+    </script>
+</DashboardLayout>

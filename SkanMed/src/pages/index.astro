@@ -1,0 +1,142 @@
+---
+import '../styles/global.css';
+import { Activity, ArrowRight } from 'lucide-react';
+import { loginUser } from '../lib/auth/controller';
+import { protectLogin, clearLoginAttempts } from '../lib/security/loginProtection';
+import PasswordInput from '../components/PasswordInput';
+
+let error = "";
+let success = "";
+
+if (Astro.request.method === "POST") {
+  try {
+    const data = await Astro.request.formData();
+    const email = data.get("email")?.toString();
+    const password = data.get("password")?.toString();
+
+    if (!email || !password) {
+      error = "Email y contraseña son requeridos.";
+    } else {
+      // PROTECCIÓN CONTRA FUERZA BRUTA: Verificar límites antes de intentar login
+      const protection = await protectLogin(Astro.request, email);
+      if (!protection.allowed) {
+        error = protection.reason || "Demasiados intentos de inicio de sesión";
+        throw new Error(error);
+      }
+
+      const result = await loginUser(email, password);
+
+      // Login exitoso: limpiar contadores de intentos
+      await clearLoginAttempts(Astro.request, email);
+
+      // Crear cookie de sesión con el JWT
+      Astro.cookies.set('session_token', result.token, {
+        path: '/',
+        httpOnly: true,
+        secure: import.meta.env.PROD,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365 * 5 // 5 años
+      });
+
+      return Astro.redirect('/dashboard');
+    }
+  } catch (e: any) {
+    error = e.message || "Error al iniciar sesión";
+  }
+}
+---
+
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Acceso | SkanMed</title>
+</head>
+<body class="bg-skan-950 min-h-screen flex items-center justify-center p-4 font-sans text-slate-300">
+
+    <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-skan-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
+        <div class="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/5 rounded-full blur-[100px]"></div>
+    </div>
+
+    <div class="w-full max-w-md bg-skan-900/80 backdrop-blur-xl border border-white/5 rounded-2xl p-8 shadow-2xl">
+
+        <div class="text-center mb-10">
+            <div class="inline-flex items-center justify-center w-12 h-12 bg-skan-500/10 rounded-xl text-skan-500 mb-6 border border-skan-500/20">
+                <Activity size={24} />
+            </div>
+            <h1 class="text-2xl font-bold text-white mb-2 font-display">SkanMed Suite</h1>
+            <p class="text-slate-500 text-sm">Plataforma de Gestión Clínica Integral</p>
+        </div>
+
+        <form method="POST" class="space-y-5" id="login-form">
+
+            <div class="space-y-1.5">
+                <label for="email" class="text-xs font-medium text-slate-400 uppercase tracking-wider">Correo Institucional</label>
+                <input
+                    type="email"
+                    name="email"
+                    id="email"
+                    required
+                    class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-skan-500 focus:ring-1 focus:ring-skan-500 transition-all text-sm"
+                />
+            </div>
+
+            <PasswordInput
+                name="password"
+                label="Contraseña"
+                required={true}
+                client:load
+            />
+
+            {error && (
+                <div class="p-3 bg-red-500/5 border border-red-500/10 rounded-lg text-red-400 text-xs text-center font-medium">
+                    {error}
+                </div>
+            )}
+
+            {success && (
+                <div class="p-3 bg-green-500/5 border border-green-500/10 rounded-lg text-green-400 text-xs text-center font-medium">
+                    {success}
+                </div>
+            )}
+
+            <button type="submit" class="w-full bg-[#41A4D2] hover:bg-[#3593c1] text-white font-semibold py-3 rounded-lg transition-all shadow-[0_4px_20px_-2px_rgba(65,164,210,0.15)] hover:shadow-[0_4px_24px_-2px_rgba(65,164,210,0.25)] flex items-center justify-center gap-2 group text-sm">
+                Iniciar Sesión
+                <ArrowRight size={16} class="group-hover:translate-x-1 transition-transform" />
+            </button>
+
+        </form>
+
+        <div class="mt-8 flex flex-col gap-3 text-center text-xs text-slate-500 border-t border-white/5 pt-6">
+            <a href="/forgot-password" class="hover:text-skan-400 transition-colors">¿Olvidaste tu contraseña?</a>
+            <div class="flex items-center justify-center gap-1">
+                <span>¿No tienes cuenta?</span>
+                <a href="/register" class="text-skan-500 font-medium hover:text-skan-400">Regístrate gratis</a>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('login-form');
+
+        loginForm?.addEventListener('submit', (e) => {
+            const email = (loginForm.querySelector('[name="email"]') as HTMLInputElement)?.value.trim();
+            const password = (loginForm.querySelector('[name="password"]') as HTMLInputElement)?.value;
+
+            if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                e.preventDefault();
+                alert('Por favor ingrese un correo electrónico válido');
+                return;
+            }
+
+            if (!password || password.length < 6) {
+                e.preventDefault();
+                alert('La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,534 @@
+---
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import { ArrowLeft, Edit, Calendar, Phone, Mail, Droplet, User, FileText, StickyNote, FolderOpen, Plus, Trash2, Pin, AlertCircle, Clock, Pill, Activity } from 'lucide-react';
+import { getCurrentDoctor } from '../../../../lib/auth/session';
+import { db } from '../../../../lib/db';
+import { patients, consultations, patientNotes, patientFiles, operations } from '../../../../lib/schema';
+import { eq, and, desc } from 'drizzle-orm';
+
+const doctor = await getCurrentDoctor(Astro.cookies);
+if (!doctor) return Astro.redirect('/');
+
+const patientId = parseInt(Astro.params.id || '0');
+
+const patientResult = await db.select().from(patients)
+  .where(and(eq(patients.id, patientId), eq(patients.doctor_id, doctor.id)))
+  .limit(1);
+
+const patient = patientResult[0];
+if (!patient) return Astro.redirect('/dashboard/pacientes');
+
+const [consultationsList, notesList, filesList, operationsList] = await Promise.all([
+  db.select().from(consultations)
+    .where(and(eq(consultations.patient_id, patientId), eq(consultations.doctor_id, doctor.id)))
+    .orderBy(desc(consultations.consultation_date)),
+  db.select().from(patientNotes)
+    .where(and(eq(patientNotes.patient_id, patientId), eq(patientNotes.doctor_id, doctor.id)))
+    .orderBy(desc(patientNotes.created_at)),
+  db.select().from(patientFiles)
+    .where(and(eq(patientFiles.patient_id, patientId), eq(patientFiles.doctor_id, doctor.id)))
+    .orderBy(desc(patientFiles.uploaded_at)),
+  db.select().from(operations)
+    .where(and(eq(operations.patient_id, patientId), eq(operations.doctor_id, doctor.id)))
+    .orderBy(desc(operations.created_at)),
+]);
+
+const tab = Astro.url.searchParams.get('tab') || 'datos';
+const age = patient.birth_date ? new Date().getFullYear() - new Date(patient.birth_date).getFullYear() : null;
+
+// Handle POST actions (delete note, delete file)
+if (Astro.request.method === "POST") {
+  const data = await Astro.request.formData();
+  const action = data.get("action")?.toString();
+
+  if (action === "delete_note") {
+    const noteId = Number(data.get("note_id"));
+    await db.delete(patientNotes).where(and(eq(patientNotes.id, noteId), eq(patientNotes.doctor_id, doctor.id)));
+    return Astro.redirect(`/dashboard/pacientes/${patientId}?tab=notas`);
+  }
+  if (action === "add_note") {
+    const title = data.get("note_title")?.toString();
+    const content = data.get("note_content")?.toString();
+    const noteType = data.get("note_type")?.toString() || 'general';
+    if (title) {
+      await db.insert(patientNotes).values({
+        patient_id: patientId,
+        doctor_id: doctor.id,
+        title,
+        content: content || null,
+        note_type: noteType,
+      });
+    }
+    return Astro.redirect(`/dashboard/pacientes/${patientId}?tab=notas`);
+  }
+  if (action === "toggle_pin") {
+    const noteId = Number(data.get("note_id"));
+    const currentPin = data.get("current_pin") === 'true';
+    await db.update(patientNotes).set({ is_pinned: !currentPin }).where(and(eq(patientNotes.id, noteId), eq(patientNotes.doctor_id, doctor.id)));
+    return Astro.redirect(`/dashboard/pacientes/${patientId}?tab=notas`);
+  }
+  if (action === "delete_file") {
+    const fileId = Number(data.get("file_id"));
+    await db.delete(patientFiles).where(and(eq(patientFiles.id, fileId), eq(patientFiles.doctor_id, doctor.id)));
+    return Astro.redirect(`/dashboard/pacientes/${patientId}?tab=expedientes`);
+  }
+  if (action === "delete_consultation") {
+    const consultationId = Number(data.get("consultation_id"));
+    await db.delete(consultations).where(and(eq(consultations.id, consultationId), eq(consultations.doctor_id, doctor.id)));
+    return Astro.redirect(`/dashboard/pacientes/${patientId}?tab=consultas`);
+  }
+}
+
+const statusColors: Record<string, string> = {
+  activo: 'bg-green-500/10 text-green-400 border-green-500/20',
+  inactivo: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+  alta: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+};
+
+const noteTypeColors: Record<string, string> = {
+  general: 'bg-slate-500/10 text-slate-400',
+  seguimiento: 'bg-blue-500/10 text-blue-400',
+  urgente: 'bg-red-500/10 text-red-400',
+  recordatorio: 'bg-yellow-500/10 text-yellow-400',
+};
+
+const consultationTypeLabels: Record<string, string> = {
+  primera_vez: 'Primera Vez',
+  seguimiento: 'Seguimiento',
+  urgencia: 'Urgencia',
+  control: 'Control',
+};
+---
+
+<DashboardLayout title={patient.full_name}>
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Header -->
+    <div class="mb-8 flex items-start justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/dashboard/pacientes" class="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors">
+          <ArrowLeft size={20} />
+        </a>
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-full bg-skan-800 border border-white/10 flex items-center justify-center text-lg font-bold text-white">
+            {patient.full_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+          </div>
+          <div>
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-display font-bold text-white">{patient.full_name}</h1>
+              <span class={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${statusColors[patient.status || 'activo'] || statusColors.activo}`}>
+                {(patient.status || 'activo').charAt(0).toUpperCase() + (patient.status || 'activo').slice(1)}
+              </span>
+            </div>
+            <div class="flex items-center gap-4 mt-1 text-xs text-slate-500">
+              {patient.document_id && <span>ID: {patient.document_id}</span>}
+              {age && <span>{age} anios</span>}
+              {patient.blood_type && <span>Tipo {patient.blood_type}</span>}
+              {patient.gender && <span>{patient.gender}</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+      <a href={`/dashboard/pacientes/${patientId}/editar`} class="bg-white/5 hover:bg-white/10 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm border border-white/10">
+        <Edit size={16} /> Editar Datos
+      </a>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-1 mb-6 border-b border-white/5 pb-0">
+      {[
+        { id: 'datos', label: 'Datos Personales', icon: 'User' },
+        { id: 'consultas', label: `Consultas (${consultationsList.length})`, icon: 'FileText' },
+        { id: 'operaciones', label: `Operaciones (${operationsList.length})`, icon: 'Activity' },
+        { id: 'notas', label: `Notas (${notesList.length})`, icon: 'StickyNote' },
+        { id: 'expedientes', label: `Expedientes (${filesList.length})`, icon: 'FolderOpen' },
+      ].map(t => (
+        <a
+          href={`/dashboard/pacientes/${patientId}?tab=${t.id}`}
+          class={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-[1px] ${
+            tab === t.id
+              ? 'text-white border-skan-500'
+              : 'text-slate-500 border-transparent hover:text-slate-300'
+          }`}
+        >
+          {t.label}
+        </a>
+      ))}
+    </div>
+
+    <!-- Tab: Datos Personales -->
+    {tab === 'datos' && (
+      <div class="space-y-6">
+        <!-- Info de contacto -->
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-6">
+          <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4">Contacto</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Telefono</p>
+              <p class="text-white">{patient.phone || 'No registrado'}</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Correo</p>
+              <p class="text-white">{patient.email || 'No registrado'}</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Ocupacion</p>
+              <p class="text-white">{patient.occupation || 'No registrado'}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contacto de emergencia -->
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-6">
+          <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4">Contacto de Emergencia</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Nombre</p>
+              <p class="text-white">{patient.emergency_contact_name || 'No registrado'}</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Telefono</p>
+              <p class="text-white">{patient.emergency_contact_phone || 'No registrado'}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Info medica -->
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-6">
+          <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4">Informacion Medica</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Alergias</p>
+              <p class="text-white whitespace-pre-line">{patient.allergies || 'Ninguna registrada'}</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Condiciones Cronicas</p>
+              <p class="text-white whitespace-pre-line">{patient.chronic_conditions || 'Ninguna registrada'}</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Medicamentos Actuales</p>
+              <p class="text-white whitespace-pre-line">{patient.current_medications || 'Ninguno registrado'}</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Tipo de Sangre</p>
+              <p class="text-white">{patient.blood_type || 'No registrado'}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Historial -->
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-6">
+          <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4">Historial</h3>
+          <div class="space-y-4 text-sm">
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Antecedentes Medicos</p>
+              <p class="text-white whitespace-pre-line">{patient.medical_history || 'Sin antecedentes registrados'}</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Historial Quirurgico</p>
+              <p class="text-white whitespace-pre-line">{patient.surgical_history || 'Sin historial quirurgico'}</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Primera Consulta</p>
+              <p class="text-white">{patient.first_consultation_date || 'No registrada'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- Tab: Consultas -->
+    {tab === 'consultas' && (
+      <div>
+        <div class="flex justify-end mb-4">
+          <a href={`/dashboard/pacientes/${patientId}/consultas/nueva`} class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center gap-2 text-sm shadow-lg shadow-[#41A4D2]/20">
+            <Plus size={16} /> Nueva Consulta
+          </a>
+        </div>
+
+        {consultationsList.length === 0 ? (
+          <div class="py-16 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.02]">
+            <FileText size={32} className="mx-auto text-slate-600 mb-3" />
+            <p class="text-slate-500 mb-2">No hay consultas registradas.</p>
+            <a href={`/dashboard/pacientes/${patientId}/consultas/nueva`} class="text-skan-400 hover:text-white font-medium text-sm">
+              Registrar primera consulta &rarr;
+            </a>
+          </div>
+        ) : (
+          <div class="space-y-3">
+            {consultationsList.map(c => (
+              <div class="bg-skan-900 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all">
+                <div class="flex items-start justify-between">
+                  <a href={`/dashboard/pacientes/${patientId}/consultas/${c.id}`} class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                      <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-skan-500/10 text-skan-400 border border-skan-500/20">
+                        {consultationTypeLabels[c.consultation_type] || c.consultation_type}
+                      </span>
+                      <span class={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                        c.status === 'completada' ? 'bg-green-500/10 text-green-400' :
+                        c.status === 'pendiente' ? 'bg-yellow-500/10 text-yellow-400' :
+                        'bg-red-500/10 text-red-400'
+                      }`}>
+                        {c.status}
+                      </span>
+                      <span class="text-xs text-slate-500 flex items-center gap-1">
+                        <Calendar size={12} /> {c.consultation_date}
+                      </span>
+                    </div>
+                    {c.reason && <p class="text-sm text-white font-medium mb-1">{c.reason}</p>}
+                    {c.diagnosis && <p class="text-xs text-slate-400 line-clamp-2">{c.diagnosis}</p>}
+                    {c.next_appointment && (
+                      <p class="text-xs text-skan-400 mt-2 flex items-center gap-1">
+                        <Clock size={12} /> Proxima cita: {c.next_appointment}
+                      </p>
+                    )}
+                  </a>
+                  <div class="flex gap-2 ml-4">
+                    <a href={`/dashboard/pacientes/${patientId}/consultas/${c.id}`} class="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors text-xs">
+                      Ver
+                    </a>
+                    <form method="POST" class="contents">
+                      <input type="hidden" name="action" value="delete_consultation" />
+                      <input type="hidden" name="consultation_id" value={c.id} />
+                      <button type="submit" onclick="return confirm('Eliminar esta consulta y sus recetas?')" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/10">
+                        <Trash2 size={14} />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+    <!-- Tab: Notas -->
+    {tab === 'notas' && (
+      <div>
+        <!-- Form nueva nota -->
+        <form method="POST" class="bg-skan-900 border border-white/5 rounded-xl p-5 mb-6 space-y-4">
+          <input type="hidden" name="action" value="add_note" />
+          <h3 class="font-bold text-white text-sm">Nueva Nota</h3>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-1">
+              <input type="text" name="note_title" required placeholder="Titulo de la nota" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+            </div>
+            <div class="md:col-span-2">
+              <input type="text" name="note_content" placeholder="Contenido..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+            </div>
+            <div class="flex gap-2">
+              <select name="note_type" class="flex-1 bg-skan-950 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors appearance-none">
+                <option value="general">General</option>
+                <option value="seguimiento">Seguimiento</option>
+                <option value="urgente">Urgente</option>
+                <option value="recordatorio">Recordatorio</option>
+              </select>
+              <button type="submit" class="bg-[#41A4D2] hover:bg-[#3593c1] text-white px-4 rounded-lg transition-all text-sm font-medium">
+                Agregar
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {notesList.length === 0 ? (
+          <div class="py-16 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.02]">
+            <StickyNote size={32} className="mx-auto text-slate-600 mb-3" />
+            <p class="text-slate-500">No hay notas para este paciente.</p>
+          </div>
+        ) : (
+          <div class="space-y-3">
+            {notesList.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0)).map(note => (
+              <div class={`bg-skan-900 border rounded-xl p-5 ${note.is_pinned ? 'border-skan-500/30' : 'border-white/5'}`}>
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                      {note.is_pinned && <Pin size={14} className="text-skan-400" />}
+                      <h4 class="font-bold text-white text-sm">{note.title}</h4>
+                      <span class={`text-xs px-2 py-0.5 rounded-full ${noteTypeColors[note.note_type || 'general']}`}>
+                        {note.note_type}
+                      </span>
+                    </div>
+                    {note.content && <p class="text-sm text-slate-400 whitespace-pre-line">{note.content}</p>}
+                    <p class="text-xs text-slate-600 mt-2">{note.created_at ? new Date(note.created_at).toLocaleDateString('es') : ''}</p>
+                  </div>
+                  <div class="flex gap-1 ml-4">
+                    <form method="POST" class="contents">
+                      <input type="hidden" name="action" value="toggle_pin" />
+                      <input type="hidden" name="note_id" value={note.id} />
+                      <input type="hidden" name="current_pin" value={String(note.is_pinned)} />
+                      <button type="submit" class={`p-2 rounded-lg transition-colors ${note.is_pinned ? 'bg-skan-500/10 text-skan-400' : 'bg-white/5 text-slate-500 hover:text-white'}`}>
+                        <Pin size={14} />
+                      </button>
+                    </form>
+                    <form method="POST" class="contents">
+                      <input type="hidden" name="action" value="delete_note" />
+                      <input type="hidden" name="note_id" value={note.id} />
+                      <button type="submit" onclick="return confirm('Eliminar esta nota?')" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+    <!-- Tab: Operaciones -->
+    {tab === 'operaciones' && (
+      <div>
+        <div class="flex justify-end mb-4">
+          <a href={`/dashboard/operaciones/nueva`} class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center gap-2 text-sm shadow-lg shadow-[#41A4D2]/20">
+            <Plus size={16} /> Nueva Operacion
+          </a>
+        </div>
+
+        {operationsList.length === 0 ? (
+          <div class="bg-skan-900 border border-white/5 rounded-xl p-12 text-center">
+            <Activity size={32} class="text-slate-600 mx-auto mb-3" />
+            <p class="text-slate-500 text-sm">No hay operaciones vinculadas a este paciente.</p>
+            <p class="text-slate-600 text-xs mt-1">Puede asociar operaciones desde la seccion de Operaciones.</p>
+          </div>
+        ) : (
+          <div class="space-y-3">
+            {operationsList.map(op => (
+              <a href={`/dashboard/operaciones/${op.id}/editar`} class="block bg-skan-900 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                      <h4 class="font-bold text-white text-sm group-hover:text-skan-400 transition-colors">{op.title}</h4>
+                      {op.category && <span class="text-xs bg-skan-500/10 text-skan-400 px-2 py-0.5 rounded-full">{op.category}</span>}
+                      {op.is_public && <span class="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">Publica</span>}
+                    </div>
+                    <div class="flex items-center gap-4 text-xs text-slate-500">
+                      {op.procedure_date && <span class="flex items-center gap-1"><Calendar size={12} /> {op.procedure_date}</span>}
+                      {op.description && <span class="truncate max-w-sm">{op.description.substring(0, 80)}{op.description.length > 80 ? '...' : ''}</span>}
+                    </div>
+                  </div>
+                  {op.image_url_after && (
+                    <img src={op.image_url_after} alt="" class="w-16 h-16 rounded-lg object-cover ml-4 border border-white/5" loading="lazy" />
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+    <!-- Tab: Expedientes -->
+    {tab === 'expedientes' && (
+      <div>
+        <div class="flex justify-end mb-4">
+          <label class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center gap-2 text-sm shadow-lg shadow-[#41A4D2]/20 cursor-pointer">
+            <Plus size={16} /> Subir Archivo
+            <input type="file" class="hidden" id="file-upload-input" accept="image/*,.pdf,.doc,.docx" />
+          </label>
+        </div>
+
+        <div id="upload-form-container" class="hidden mb-6">
+          <form method="POST" action={`/api/upload-patient-file?patient_id=${patientId}`} id="file-upload-form" class="bg-skan-900 border border-white/5 rounded-xl p-5 space-y-4">
+            <h3 class="font-bold text-white text-sm">Nuevo Expediente</h3>
+            <input type="text" name="description" placeholder="Descripcion del archivo (ej: Resonancia lumbar, Resultado laboratorio...)" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+            <div id="upload-status" class="text-xs text-slate-400"></div>
+          </form>
+        </div>
+
+        {filesList.length === 0 ? (
+          <div class="py-16 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.02]">
+            <FolderOpen size={32} className="mx-auto text-slate-600 mb-3" />
+            <p class="text-slate-500">No hay expedientes adjuntos.</p>
+          </div>
+        ) : (
+          <div class="space-y-3">
+            {filesList.map(file => (
+              <div class="bg-skan-900 border border-white/5 rounded-xl p-5 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-skan-800 rounded-lg text-skan-400">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium text-white">{file.file_name}</p>
+                    {file.description && <p class="text-xs text-slate-500">{file.description}</p>}
+                    <p class="text-xs text-slate-600">{file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString('es') : ''} - {file.file_type || 'Archivo'}</p>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  {file.file_url && (
+                    <a href={file.file_url} target="_blank" class="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors text-xs">
+                      Ver
+                    </a>
+                  )}
+                  <form method="POST" class="contents">
+                    <input type="hidden" name="action" value="delete_file" />
+                    <input type="hidden" name="file_id" value={file.id} />
+                    <button type="submit" onclick="return confirm('Eliminar este archivo?')" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/10">
+                      <Trash2 size={14} />
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+  </div>
+
+  <script>
+    // File upload handling
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    const uploadContainer = document.getElementById('upload-form-container');
+    const uploadStatus = document.getElementById('upload-status');
+
+    fileInput?.addEventListener('change', async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      if (uploadContainer) uploadContainer.classList.remove('hidden');
+      if (uploadStatus) uploadStatus.textContent = `Subiendo ${file.name}...`;
+
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        // Now save the file record
+        const descInput = document.querySelector('[name="description"]') as HTMLInputElement;
+        const patientId = window.location.pathname.split('/')[3];
+
+        const saveResponse = await fetch('/api/patient-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patient_id: parseInt(patientId),
+            file_name: file.name,
+            file_url: data.url,
+            file_type: file.type,
+            description: descInput?.value || '',
+          }),
+        });
+
+        if (saveResponse.ok) {
+          window.location.reload();
+        } else {
+          const err = await saveResponse.json();
+          if (uploadStatus) uploadStatus.textContent = `Error: ${err.error}`;
+        }
+      } catch (err: any) {
+        if (uploadStatus) uploadStatus.textContent = `Error: ${err.message}`;
+      }
+    });
+  </script>
+</DashboardLayout>

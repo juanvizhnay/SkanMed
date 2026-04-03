@@ -1,0 +1,391 @@
+---
+import { getCurrentDoctor } from '../../../../../../lib/auth/session';
+import { db } from '../../../../../../lib/db';
+import { patients, consultations, prescriptions } from '../../../../../../lib/schema';
+import { eq, and } from 'drizzle-orm';
+
+const doctor = await getCurrentDoctor(Astro.cookies);
+if (!doctor) return Astro.redirect('/');
+
+const patientId = parseInt(Astro.params.id || '0');
+const consultationId = parseInt(Astro.params.cid || '0');
+
+const [patientResult, consultationResult, prescriptionsList] = await Promise.all([
+  db.select().from(patients)
+    .where(and(eq(patients.id, patientId), eq(patients.doctor_id, doctor.id)))
+    .limit(1),
+  db.select().from(consultations)
+    .where(and(eq(consultations.id, consultationId), eq(consultations.patient_id, patientId), eq(consultations.doctor_id, doctor.id)))
+    .limit(1),
+  db.select().from(prescriptions)
+    .where(eq(prescriptions.consultation_id, consultationId)),
+]);
+
+const patient = patientResult[0];
+const consultation = consultationResult[0];
+if (!patient || !consultation) return Astro.redirect('/dashboard/pacientes');
+
+const age = patient.birth_date ? new Date().getFullYear() - new Date(patient.birth_date).getFullYear() : null;
+
+const typeLabels: Record<string, string> = {
+  primera_vez: 'Primera Vez',
+  seguimiento: 'Seguimiento',
+  urgencia: 'Urgencia',
+  control: 'Control',
+};
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consulta - {patient.full_name} - {consultation.consultation_date}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #1a1a2e;
+      background: #fff;
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 40px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 3px solid #41A4D2;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    .header-left h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #41A4D2;
+      margin-bottom: 2px;
+    }
+    .header-left p {
+      font-size: 12px;
+      color: #666;
+    }
+    .header-right {
+      text-align: right;
+      font-size: 11px;
+      color: #666;
+    }
+    .header-right strong {
+      color: #1a1a2e;
+      font-size: 12px;
+    }
+
+    .patient-info {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .patient-info .field label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .patient-info .field span {
+      font-size: 13px;
+      color: #1a1a2e;
+      font-weight: 500;
+    }
+
+    .consultation-meta {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .meta-tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: #e0f2fe;
+      color: #0284c7;
+    }
+    .meta-tag.status-completada { background: #dcfce7; color: #16a34a; }
+    .meta-tag.status-pendiente { background: #fef9c3; color: #ca8a04; }
+    .meta-tag.status-cancelada { background: #fecaca; color: #dc2626; }
+
+    .section {
+      margin-bottom: 20px;
+    }
+    .section h3 {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #41A4D2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .section p {
+      font-size: 13px;
+      color: #334155;
+      white-space: pre-line;
+    }
+    .section .label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 4px;
+      margin-top: 10px;
+    }
+    .section .label:first-child { margin-top: 0; }
+
+    .prescriptions-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    .prescriptions-table th {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 2px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .prescriptions-table td {
+      font-size: 12px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+    }
+    .prescriptions-table td:first-child {
+      font-weight: 600;
+      color: #1a1a2e;
+    }
+    .prescriptions-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .footer .sign-area {
+      text-align: center;
+      min-width: 200px;
+    }
+    .footer .sign-line {
+      border-top: 1px solid #1a1a2e;
+      margin-top: 50px;
+      padding-top: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .footer .sign-sub {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+    .footer .generated {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    .no-print { margin-bottom: 24px; }
+    .no-print button {
+      background: #41A4D2;
+      color: #fff;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    .no-print button:hover { background: #3593c1; }
+    .no-print a {
+      color: #64748b;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    @media print {
+      body { padding: 20px; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print">
+    <button onclick="window.print()">Exportar como PDF / Imprimir</button>
+    <a href={`/dashboard/pacientes/${patientId}/consultas/${consultationId}`}>Volver a la consulta</a>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>SKANMED</h1>
+      <p>Sistema de Gestion Clinica</p>
+    </div>
+    <div class="header-right">
+      <strong>Dr. {doctor.full_name}</strong><br />
+      {doctor.specialty}<br />
+      {doctor.license_number ? `Lic. ${doctor.license_number}` : ''}
+    </div>
+  </div>
+
+  <!-- Patient Info -->
+  <div class="patient-info">
+    <div class="field">
+      <label>Paciente</label>
+      <span>{patient.full_name}</span>
+    </div>
+    <div class="field">
+      <label>Cedula / DNI</label>
+      <span>{patient.document_id || 'N/A'}</span>
+    </div>
+    <div class="field">
+      <label>Edad</label>
+      <span>{age ? `${age} anios` : 'N/A'}</span>
+    </div>
+    <div class="field">
+      <label>Tipo de Sangre</label>
+      <span>{patient.blood_type || 'N/A'}</span>
+    </div>
+    <div class="field">
+      <label>Telefono</label>
+      <span>{patient.phone || 'N/A'}</span>
+    </div>
+    <div class="field">
+      <label>Alergias</label>
+      <span>{patient.allergies || 'Ninguna'}</span>
+    </div>
+  </div>
+
+  <!-- Consultation Meta -->
+  <div class="consultation-meta">
+    <span class="meta-tag">Fecha: {consultation.consultation_date}</span>
+    <span class="meta-tag">{typeLabels[consultation.consultation_type] || consultation.consultation_type}</span>
+    <span class={`meta-tag status-${consultation.status}`}>{consultation.status}</span>
+    {consultation.next_appointment && <span class="meta-tag">Proxima cita: {consultation.next_appointment}</span>}
+  </div>
+
+  <!-- Motivo -->
+  {(consultation.reason || consultation.symptoms) && (
+    <div class="section">
+      <h3>Motivo de Consulta</h3>
+      {consultation.reason && (
+        <>
+          <p class="label">Motivo</p>
+          <p>{consultation.reason}</p>
+        </>
+      )}
+      {consultation.symptoms && (
+        <>
+          <p class="label">Sintomas Reportados</p>
+          <p>{consultation.symptoms}</p>
+        </>
+      )}
+    </div>
+  )}
+
+  <!-- Evaluacion -->
+  {(consultation.examination || consultation.diagnosis || consultation.treatment_plan) && (
+    <div class="section">
+      <h3>Evaluacion Clinica</h3>
+      {consultation.examination && (
+        <>
+          <p class="label">Examen Fisico</p>
+          <p>{consultation.examination}</p>
+        </>
+      )}
+      {consultation.diagnosis && (
+        <>
+          <p class="label">Diagnostico</p>
+          <p>{consultation.diagnosis}</p>
+        </>
+      )}
+      {consultation.treatment_plan && (
+        <>
+          <p class="label">Plan de Tratamiento</p>
+          <p>{consultation.treatment_plan}</p>
+        </>
+      )}
+    </div>
+  )}
+
+  <!-- Observaciones -->
+  {consultation.observations && (
+    <div class="section">
+      <h3>Observaciones</h3>
+      <p>{consultation.observations}</p>
+    </div>
+  )}
+
+  <!-- Recetas -->
+  {prescriptionsList.length > 0 && (
+    <div class="section">
+      <h3>Receta Medica</h3>
+      <table class="prescriptions-table">
+        <thead>
+          <tr>
+            <th>Medicamento</th>
+            <th>Dosis</th>
+            <th>Frecuencia</th>
+            <th>Duracion</th>
+            <th>Instrucciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {prescriptionsList.map(rx => (
+            <tr>
+              <td>{rx.medication_name}</td>
+              <td>{rx.dosage || '-'}</td>
+              <td>{rx.frequency || '-'}</td>
+              <td>{rx.duration || '-'}</td>
+              <td>{rx.instructions || '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+  <!-- Footer / Firma -->
+  <div class="footer">
+    <div class="generated">
+      Generado por SkanMed<br />
+      {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+    </div>
+    <div class="sign-area">
+      <div class="sign-line">Dr. {doctor.full_name}</div>
+      <div class="sign-sub">{doctor.specialty}{doctor.license_number ? ` | Lic. ${doctor.license_number}` : ''}</div>
+    </div>
+  </div>
+
+</body>
+</html>

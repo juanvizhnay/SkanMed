@@ -1,0 +1,431 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { Save, Key, User, Briefcase, Shield } from 'lucide-react';
+import { getCurrentDoctor, invalidateDoctorCache } from '../../lib/auth/session';
+import { db } from '../../lib/db';
+import { doctors, doctorProfiles, contactInfo } from '../../lib/schema';
+import { eq } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
+import ProfileImageUploader from '../../components/ProfileImageUploader';
+
+const doctor = await getCurrentDoctor(Astro.cookies);
+if (!doctor) {
+  return Astro.redirect('/');
+}
+
+// Obtener perfil y contacto en paralelo
+const [profileResult, contactResult] = await Promise.all([
+  db.select().from(doctorProfiles).where(eq(doctorProfiles.doctor_id, doctor.id)).limit(1),
+  db.select().from(contactInfo).where(eq(contactInfo.doctor_id, doctor.id)).limit(1),
+]);
+const profile = profileResult[0];
+const contact = contactResult[0];
+
+let success = "";
+let error = "";
+let activeTab = "perfil"; // perfil | contacto | seguridad
+
+if (Astro.request.method === "POST") {
+  const data = await Astro.request.formData();
+  const action = data.get("action")?.toString();
+
+  try {
+    if (action === "update_profile") {
+      // Actualizar datos básicos del doctor
+      await db.update(doctors)
+        .set({
+          full_name: data.get("full_name")?.toString()!,
+          specialty: data.get("specialty")?.toString()!,
+          license_number: data.get("license_number")?.toString() || null,
+        })
+        .where(eq(doctors.id, doctor.id));
+
+      const hero_title = data.get("hero_title")?.toString();
+      const about_bio = data.get("about_bio")?.toString();
+      const profile_picture_url = data.get("profile_picture_url")?.toString();
+      const stat_years_exp = data.get("stat_years_exp")?.toString() || null;
+      const stat_patients = data.get("stat_patients")?.toString() || null;
+      const stat_success = data.get("stat_success")?.toString() || null;
+
+      const profileData = {
+        hero_title, about_bio,
+        profile_picture_url: profile_picture_url || null,
+        stat_years_exp, stat_patients, stat_success,
+      };
+
+      if (profile) {
+        await db.update(doctorProfiles)
+          .set(profileData)
+          .where(eq(doctorProfiles.id, profile.id));
+      } else {
+        await db.insert(doctorProfiles).values({
+          doctor_id: doctor.id,
+          ...profileData,
+        });
+      }
+
+      await invalidateDoctorCache(doctor.id);
+      success = "Perfil actualizado correctamente";
+      activeTab = "perfil";
+
+    } else if (action === "update_contact") {
+      const whatsapp = data.get("whatsapp")?.toString();
+      const address = data.get("address")?.toString();
+      const maps_url = data.get("maps_url")?.toString();
+      const email_contact = data.get("email_contact")?.toString();
+
+      if (contact) {
+        await db.update(contactInfo)
+          .set({
+            whatsapp_number: whatsapp || null,
+            address: address || null,
+            google_maps_url: maps_url || null,
+            email_contact: email_contact || null,
+          })
+          .where(eq(contactInfo.id, contact.id));
+      } else {
+        await db.insert(contactInfo).values({
+          doctor_id: doctor.id,
+          whatsapp_number: whatsapp || null,
+          address: address || null,
+          google_maps_url: maps_url || null,
+          email_contact: email_contact || null,
+        });
+      }
+
+      success = "Información de contacto actualizada";
+      activeTab = "contacto";
+
+    } else if (action === "change_password") {
+      const currentPassword = data.get("current_password")?.toString();
+      const newPassword = data.get("new_password")?.toString();
+      const confirmPassword = data.get("confirm_password")?.toString();
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        throw new Error("Todos los campos son requeridos");
+      }
+
+      if (newPassword !== confirmPassword) {
+        throw new Error("Las contraseñas nuevas no coinciden");
+      }
+
+      if (newPassword.length < 8) {
+        throw new Error("La contraseña debe tener al menos 8 caracteres");
+      }
+
+      // Verificar contraseña actual
+      const valid = await bcrypt.compare(currentPassword, doctor.password_hash);
+      if (!valid) {
+        throw new Error("Contraseña actual incorrecta");
+      }
+
+      // Actualizar contraseña
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await db.update(doctors)
+        .set({ password_hash: hashedPassword })
+        .where(eq(doctors.id, doctor.id));
+
+      success = "Contraseña actualizada correctamente";
+      activeTab = "seguridad";
+    }
+
+    return Astro.redirect(`/dashboard/configuracion?success=${encodeURIComponent(success)}&tab=${activeTab}`);
+
+  } catch (e: any) {
+    error = e.message || "Error al guardar cambios";
+  }
+}
+
+// Recargar doctor con datos actualizados si hubo éxito
+const updatedDoctor = await getCurrentDoctor(Astro.cookies);
+const successMsg = Astro.url.searchParams.get('success');
+const tab = Astro.url.searchParams.get('tab') || 'perfil';
+---
+
+<DashboardLayout title="Configuración">
+
+  <div class="mb-8">
+    <h1 class="text-2xl font-display font-bold text-white mb-1">Configuración</h1>
+    <p class="text-slate-400 text-sm">Administre su perfil profesional y preferencias.</p>
+  </div>
+
+  {successMsg && (
+    <div class="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm">
+      {successMsg}
+    </div>
+  )}
+
+  {error && (
+    <div class="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+      {error}
+    </div>
+  )}
+
+  <!-- Tabs -->
+  <div class="flex gap-2 mb-6 border-b border-white/5">
+    <button onclick={`setTab('perfil')`} class={`px-4 py-2 text-sm font-medium transition-colors ${tab === 'perfil' ? 'text-white border-b-2 border-skan-500' : 'text-slate-500 hover:text-white'}`} data-tab="perfil">
+      <div class="flex items-center gap-2">
+        <User size={16} /> Perfil
+      </div>
+    </button>
+    <button onclick={`setTab('contacto')`} class={`px-4 py-2 text-sm font-medium transition-colors ${tab === 'contacto' ? 'text-white border-b-2 border-skan-500' : 'text-slate-500 hover:text-white'}`} data-tab="contacto">
+      <div class="flex items-center gap-2">
+        <Briefcase size={16} /> Contacto
+      </div>
+    </button>
+    <button onclick={`setTab('seguridad')`} class={`px-4 py-2 text-sm font-medium transition-colors ${tab === 'seguridad' ? 'text-white border-b-2 border-skan-500' : 'text-slate-500 hover:text-white'}`} data-tab="seguridad">
+      <div class="flex items-center gap-2">
+        <Shield size={16} /> Seguridad
+      </div>
+    </button>
+  </div>
+
+  <!-- Tab: Perfil -->
+  <div id="tab-perfil" class={tab === 'perfil' ? '' : 'hidden'}>
+    <form method="POST" class="space-y-6 max-w-2xl" id="profile-form">
+      <input type="hidden" name="action" value="update_profile" />
+
+      <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-6">
+        <h3 class="font-bold text-white text-sm border-b border-white/5 pb-4 mb-4">Datos Profesionales</h3>
+
+        <ProfileImageUploader
+          client:only="react"
+          currentImageUrl={profile?.profile_picture_url || ''}
+        />
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Nombre Completo</label>
+          <input type="text" name="full_name" required value={updatedDoctor?.full_name || doctor.full_name} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Especialidad</label>
+            <input type="text" name="specialty" required value={updatedDoctor?.specialty || doctor.specialty} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">No. Licencia</label>
+            <input type="text" name="license_number" value={updatedDoctor?.license_number || doctor.license_number || ''} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Título del Hero (Landing Page)</label>
+          <input type="text" name="hero_title" value={profile?.hero_title || ''} placeholder="Ej: Neurocirujano con 15 años de experiencia" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Bio / Sobre Mi</label>
+          <textarea name="about_bio" rows="4" placeholder="Cuente sobre su experiencia, logros, enfoque medico..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{profile?.about_bio || ''}</textarea>
+        </div>
+
+        <div class="border-t border-white/5 pt-6">
+          <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Estadisticas del Hero (Landing Page)</h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Anos de Experiencia</label>
+              <input type="text" name="stat_years_exp" value={profile?.stat_years_exp || ''} placeholder="Ej: +15" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Pacientes Atendidos</label>
+              <input type="text" name="stat_patients" value={profile?.stat_patients || ''} placeholder="Ej: 2.5k+" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Tasa de Exito</label>
+              <input type="text" name="stat_success" value={profile?.stat_success || ''} placeholder="Ej: 98%" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-bold py-3 px-8 rounded-lg transition-all shadow-[0_4px_20px_-2px_rgba(65,164,210,0.15)] flex items-center gap-2">
+          <Save size={18} /> Guardar Perfil
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab: Contacto -->
+  <div id="tab-contacto" class={tab === 'contacto' ? '' : 'hidden'}>
+    <form method="POST" class="space-y-6 max-w-2xl" id="contact-form">
+      <input type="hidden" name="action" value="update_contact" />
+
+      <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-6">
+        <h3 class="font-bold text-white text-sm border-b border-white/5 pb-4 mb-4">Información de Contacto (Landing Page)</h3>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">WhatsApp</label>
+          <input type="tel" name="whatsapp" value={contact?.whatsapp_number || ''} placeholder="+593 99 123 4567" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Dirección del Consultorio</label>
+          <textarea name="address" rows="2" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{contact?.address || ''}</textarea>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Google Maps URL</label>
+          <input type="url" name="maps_url" value={contact?.google_maps_url || ''} placeholder="https://maps.google.com/..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Email de Contacto Público</label>
+          <input type="email" name="email_contact" value={contact?.email_contact || ''} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-bold py-3 px-8 rounded-lg transition-all shadow-[0_4px_20px_-2px_rgba(65,164,210,0.15)] flex items-center gap-2">
+          <Save size={18} /> Guardar Contacto
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab: Seguridad -->
+  <div id="tab-seguridad" class={tab === 'seguridad' ? '' : 'hidden'}>
+    <form method="POST" class="space-y-6 max-w-2xl" id="security-form">
+      <input type="hidden" name="action" value="change_password" />
+
+      <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-6">
+        <h3 class="font-bold text-white text-sm border-b border-white/5 pb-4 mb-4">Cambiar Contraseña</h3>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Contraseña Actual</label>
+          <input type="password" name="current_password" required class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Nueva Contraseña</label>
+          <input type="password" name="new_password" required minlength="8" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          <p class="text-[10px] text-slate-500">Mínimo 8 caracteres con mayúscula o símbolo</p>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Confirmar Nueva Contraseña</label>
+          <input type="password" name="confirm_password" required class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-bold py-3 px-8 rounded-lg transition-all shadow-[0_4px_20px_-2px_rgba(65,164,210,0.15)] flex items-center gap-2">
+          <Key size={18} /> Cambiar Contraseña
+        </button>
+      </div>
+    </form>
+  </div>
+
+</DashboardLayout>
+
+<script define:vars={{ tab }}>
+  function setTab(tabName) {
+    // Ocultar todos
+    document.getElementById('tab-perfil').classList.add('hidden');
+    document.getElementById('tab-contacto').classList.add('hidden');
+    document.getElementById('tab-seguridad').classList.add('hidden');
+
+    // Mostrar el seleccionado
+    document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+
+    // Actualizar estilos de botones
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabName) {
+        btn.classList.add('text-white', 'border-b-2', 'border-skan-500');
+        btn.classList.remove('text-slate-500');
+      } else {
+        btn.classList.remove('text-white', 'border-b-2', 'border-skan-500');
+        btn.classList.add('text-slate-500');
+      }
+    });
+  }
+
+  // Validaciones para formulario de perfil
+  const profileForm = document.getElementById('profile-form');
+  profileForm?.addEventListener('submit', (e) => {
+    const fullName = profileForm.querySelector('[name="full_name"]').value.trim();
+    const specialty = profileForm.querySelector('[name="specialty"]').value.trim();
+
+    if (!fullName || fullName.length < 3) {
+      e.preventDefault();
+      alert('El nombre completo debe tener al menos 3 caracteres');
+      return;
+    }
+
+    if (!specialty || specialty.length < 3) {
+      e.preventDefault();
+      alert('La especialidad debe tener al menos 3 caracteres');
+      return;
+    }
+  });
+
+  // Validaciones para formulario de contacto
+  const contactForm = document.getElementById('contact-form');
+  contactForm?.addEventListener('submit', (e) => {
+    const whatsapp = contactForm.querySelector('[name="whatsapp"]').value.trim();
+    const email = contactForm.querySelector('[name="email"]').value.trim();
+    const googleMaps = contactForm.querySelector('[name="google_maps_url"]').value.trim();
+
+    if (whatsapp && whatsapp.length < 7) {
+      e.preventDefault();
+      alert('El número de WhatsApp debe tener al menos 7 dígitos');
+      return;
+    }
+
+    if (email && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      e.preventDefault();
+      alert('El correo electrónico no es válido');
+      return;
+    }
+
+    if (googleMaps && !googleMaps.match(/^https?:\/\/.+/)) {
+      e.preventDefault();
+      alert('La URL de Google Maps debe ser válida (comenzar con http:// o https://)');
+      return;
+    }
+  });
+
+  // Validaciones para formulario de seguridad
+  const securityForm = document.getElementById('security-form');
+  securityForm?.addEventListener('submit', (e) => {
+    const currentPassword = securityForm.querySelector('[name="current_password"]').value;
+    const newPassword = securityForm.querySelector('[name="new_password"]').value;
+    const confirmPassword = securityForm.querySelector('[name="confirm_password"]').value;
+
+    if (!currentPassword || currentPassword.length < 6) {
+      e.preventDefault();
+      alert('La contraseña actual es requerida');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      e.preventDefault();
+      alert('La nueva contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+
+    // Verificar que contenga al menos una mayúscula o un símbolo
+    const hasUpperOrSymbol = /[A-Z]/.test(newPassword) || /[^A-Za-z0-9]/.test(newPassword);
+    if (!hasUpperOrSymbol) {
+      e.preventDefault();
+      alert('La nueva contraseña debe contener al menos una mayúscula o un símbolo');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      e.preventDefault();
+      alert('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      e.preventDefault();
+      alert('La nueva contraseña debe ser diferente a la actual');
+      return;
+    }
+  });
+
+  // Inicializar tab activo
+  window.setTab = setTab;
+</script>

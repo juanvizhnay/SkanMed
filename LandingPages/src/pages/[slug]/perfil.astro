@@ -1,0 +1,48 @@
+---
+import DoctorLayout from '../../layouts/DoctorLayout.astro';
+import { GraduationCap } from 'lucide-react';
+import { getDoctorBySlug, getAcademicHistory } from '../../lib/doctors';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/404');
+
+const doctor = await getDoctorBySlug(slug);
+if (!doctor) return new Response('Doctor not found', { status: 404 });
+
+const history = await getAcademicHistory(doctor.id);
+---
+
+<DoctorLayout title={`Perfil | Dr. ${doctor.full_name}`} doctorSlug={slug} doctorName={doctor.full_name}>
+  <section class="py-20">
+    <div class="container mx-auto px-6">
+
+      <div class="text-center mb-16">
+        <h1 class="text-4xl font-display font-bold text-white mb-4">Trayectoria Profesional</h1>
+        <p class="text-slate-400">Formacion academica y experiencia clinica del Dr. {doctor.full_name}</p>
+      </div>
+
+      <div class="max-w-4xl mx-auto space-y-12">
+
+        <div class="relative pl-8 border-l border-white/10 space-y-12">
+          {history.length === 0 ? (
+             <p class="text-slate-500 italic">Informacion pendiente de carga.</p>
+          ) : history.map((item) => (
+            <div class="relative">
+              <span class="absolute -left-[41px] bg-skan-950 border border-skan-500 p-2 rounded-full text-skan-400">
+                <GraduationCap size={20} />
+              </span>
+              <div class="bg-white/5 border border-white/5 rounded-2xl p-6 hover:bg-white/10 transition-colors">
+                <span class="text-xs font-bold text-skan-400 bg-skan-500/10 px-3 py-1 rounded-full border border-skan-500/20 mb-3 inline-block">
+                  {item.start_year} - {item.end_year || 'Presente'}
+                </span>
+                <h3 class="text-xl font-bold text-white mb-1">{item.title}</h3>
+                <p class="text-slate-300">{item.institution}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </div>
+  </section>
+</DoctorLayout>

@@ -1,0 +1,125 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { Plus, Trash2, Calendar, Phone, Mail, Droplet, Eye, Search } from 'lucide-react';
+import { getCurrentDoctor } from '../../../lib/auth/session';
+import { db } from '../../../lib/db';
+import { patients } from '../../../lib/schema';
+import { eq, desc } from 'drizzle-orm';
+
+const doctor = await getCurrentDoctor(Astro.cookies);
+if (!doctor) return Astro.redirect('/');
+
+const patientsList = await db.select().from(patients)
+  .where(eq(patients.doctor_id, doctor.id))
+  .orderBy(desc(patients.created_at));
+
+if (Astro.request.method === "POST") {
+  const data = await Astro.request.formData();
+  const deleteId = data.get("delete_id");
+
+  if (deleteId) {
+    await db.delete(patients).where(eq(patients.id, Number(deleteId)));
+    return Astro.redirect('/dashboard/pacientes');
+  }
+}
+
+const statusColors: Record<string, string> = {
+  activo: 'bg-green-500/10 text-green-400 border-green-500/20',
+  inactivo: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+  alta: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+};
+---
+
+<DashboardLayout title="Pacientes">
+
+  <div class="flex justify-between items-center mb-8">
+    <div>
+      <h1 class="text-2xl font-display font-bold text-white mb-1">Gestion de Pacientes</h1>
+      <p class="text-slate-400 text-sm">{patientsList.length} paciente{patientsList.length !== 1 ? 's' : ''} registrado{patientsList.length !== 1 ? 's' : ''}</p>
+    </div>
+    <a href="/dashboard/pacientes/nuevo" class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-medium py-2.5 px-5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-[#41A4D2]/20 text-sm">
+      <Plus size={18} /> Nuevo Paciente
+    </a>
+  </div>
+
+  {patientsList.length === 0 ? (
+    <div class="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.02]">
+      <p class="text-slate-500 mb-4">No hay pacientes registrados aun.</p>
+      <a href="/dashboard/pacientes/nuevo" class="text-skan-400 hover:text-white font-medium text-sm">
+        Registrar el primero &rarr;
+      </a>
+    </div>
+  ) : (
+    <div class="space-y-3">
+      {patientsList.map((patient) => {
+        const age = patient.birth_date ? new Date().getFullYear() - new Date(patient.birth_date).getFullYear() : null;
+        const status = patient.status || 'activo';
+
+        return (
+          <a href={`/dashboard/pacientes/${patient.id}`} class="block bg-skan-900 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all group cursor-pointer">
+            <div class="flex items-start justify-between">
+
+              <div class="flex-1">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-full bg-skan-800 border border-white/10 flex items-center justify-center text-sm font-bold text-white">
+                    {patient.full_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h3 class="font-bold text-white text-base group-hover:text-skan-400 transition-colors">{patient.full_name}</h3>
+                      <span class={`text-xs font-bold px-2 py-0.5 rounded-full border ${statusColors[status]}`}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </span>
+                    </div>
+                    <p class="text-xs text-slate-500">ID: {patient.document_id || 'No registrado'}</p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  {age && (
+                    <div class="flex items-center gap-2 text-slate-400">
+                      <Calendar size={12} />
+                      {age} anios
+                    </div>
+                  )}
+                  {patient.phone && (
+                    <div class="flex items-center gap-2 text-slate-400">
+                      <Phone size={12} />
+                      {patient.phone}
+                    </div>
+                  )}
+                  {patient.email && (
+                    <div class="flex items-center gap-2 text-slate-400">
+                      <Mail size={12} />
+                      {patient.email}
+                    </div>
+                  )}
+                  {patient.blood_type && (
+                    <div class="flex items-center gap-2 text-slate-400">
+                      <Droplet size={12} />
+                      Tipo {patient.blood_type}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div class="flex gap-2 ml-4" onclick="event.stopPropagation(); event.preventDefault();">
+                <a href={`/dashboard/pacientes/${patient.id}`} class="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors" onclick="event.stopPropagation();">
+                  <Eye size={16} />
+                </a>
+                <form method="POST" class="contents" onclick="event.stopPropagation();">
+                  <input type="hidden" name="delete_id" value={patient.id} />
+                  <button type="submit" onclick="event.stopPropagation(); return confirm('Eliminar paciente y todo su historial?')" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/10">
+                    <Trash2 size={16} />
+                  </button>
+                </form>
+              </div>
+
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  )}
+
+</DashboardLayout>

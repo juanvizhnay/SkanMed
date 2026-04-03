@@ -1,0 +1,199 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import { ArrowLeft, Edit, Calendar, Pill, Clock, FileText, AlertCircle, Download } from 'lucide-react';
+import { getCurrentDoctor } from '../../../../../lib/auth/session';
+import { db } from '../../../../../lib/db';
+import { patients, consultations, prescriptions, consultationFiles } from '../../../../../lib/schema';
+import { eq, and } from 'drizzle-orm';
+
+const doctor = await getCurrentDoctor(Astro.cookies);
+if (!doctor) return Astro.redirect('/');
+
+const patientId = parseInt(Astro.params.id || '0');
+const consultationId = parseInt(Astro.params.cid || '0');
+
+// Verify patient belongs to doctor
+const patientResult = await db.select().from(patients)
+  .where(and(eq(patients.id, patientId), eq(patients.doctor_id, doctor.id)))
+  .limit(1);
+
+const patient = patientResult[0];
+if (!patient) return Astro.redirect('/dashboard/pacientes');
+
+// Get consultation with prescriptions and files in parallel
+const [consultationResult, prescriptionsList, filesList] = await Promise.all([
+  db.select().from(consultations)
+    .where(and(eq(consultations.id, consultationId), eq(consultations.patient_id, patientId)))
+    .limit(1),
+  db.select().from(prescriptions)
+    .where(eq(prescriptions.consultation_id, consultationId)),
+  db.select().from(consultationFiles)
+    .where(eq(consultationFiles.consultation_id, consultationId)),
+]);
+
+const consultation = consultationResult[0];
+if (!consultation) return Astro.redirect(`/dashboard/pacientes/${patientId}?tab=consultas`);
+
+const typeLabels: Record<string, string> = {
+  primera_vez: 'Primera Vez',
+  seguimiento: 'Seguimiento',
+  urgencia: 'Urgencia',
+  control: 'Control',
+};
+
+const statusColors: Record<string, string> = {
+  completada: 'bg-green-500/10 text-green-400 border-green-500/20',
+  pendiente: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+  cancelada: 'bg-red-500/10 text-red-400 border-red-500/20',
+};
+---
+
+<DashboardLayout title="Detalle de Consulta">
+  <div class="max-w-4xl mx-auto">
+
+    <!-- Header -->
+    <div class="mb-8 flex items-start justify-between">
+      <div class="flex items-center gap-4">
+        <a href={`/dashboard/pacientes/${patientId}?tab=consultas`} class="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors">
+          <ArrowLeft size={20} />
+        </a>
+        <div>
+          <h1 class="text-2xl font-display font-bold text-white mb-1">Consulta del {consultation.consultation_date}</h1>
+          <p class="text-slate-400 text-sm">Paciente: {patient.full_name}</p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <a href={`/dashboard/pacientes/${patientId}/consultas/${consultationId}/pdf`} target="_blank" class="bg-white/5 hover:bg-white/10 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm border border-white/10">
+          <Download size={16} /> Exportar PDF
+        </a>
+        <a href={`/dashboard/pacientes/${patientId}/consultas/${consultationId}/editar`} class="bg-white/5 hover:bg-white/10 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm border border-white/10">
+          <Edit size={16} /> Editar
+        </a>
+      </div>
+    </div>
+
+    <!-- Meta -->
+    <div class="flex gap-3 mb-6">
+      <span class="text-xs font-bold px-3 py-1 rounded-full bg-skan-500/10 text-skan-400 border border-skan-500/20">
+        {typeLabels[consultation.consultation_type] || consultation.consultation_type}
+      </span>
+      <span class={`text-xs font-bold px-3 py-1 rounded-full border ${statusColors[consultation.status || 'completada']}`}>
+        {consultation.status}
+      </span>
+      {consultation.next_appointment && (
+        <span class="text-xs px-3 py-1 rounded-full bg-white/5 text-slate-400 flex items-center gap-1">
+          <Clock size={12} /> Proxima cita: {consultation.next_appointment}
+        </span>
+      )}
+    </div>
+
+    <div class="space-y-6">
+
+      <!-- Motivo y Sintomas -->
+      {(consultation.reason || consultation.symptoms) && (
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-6">
+          <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4">Motivo de Consulta</h3>
+          {consultation.reason && (
+            <div class="mb-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Motivo</p>
+              <p class="text-sm text-white whitespace-pre-line">{consultation.reason}</p>
+            </div>
+          )}
+          {consultation.symptoms && (
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Sintomas Reportados</p>
+              <p class="text-sm text-white whitespace-pre-line">{consultation.symptoms}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <!-- Evaluacion Clinica -->
+      {(consultation.examination || consultation.diagnosis || consultation.treatment_plan) && (
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-4">
+          <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4">Evaluacion Clinica</h3>
+          {consultation.examination && (
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Examen Fisico</p>
+              <p class="text-sm text-white whitespace-pre-line">{consultation.examination}</p>
+            </div>
+          )}
+          {consultation.diagnosis && (
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Diagnostico</p>
+              <p class="text-sm text-white whitespace-pre-line font-medium">{consultation.diagnosis}</p>
+            </div>
+          )}
+          {consultation.treatment_plan && (
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Plan de Tratamiento</p>
+              <p class="text-sm text-white whitespace-pre-line">{consultation.treatment_plan}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <!-- Observaciones -->
+      {consultation.observations && (
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-6">
+          <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4">Observaciones</h3>
+          <p class="text-sm text-white whitespace-pre-line">{consultation.observations}</p>
+        </div>
+      )}
+
+      <!-- Recetas -->
+      <div class="bg-skan-900 border border-white/5 rounded-xl p-6">
+        <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4 flex items-center gap-2">
+          <Pill size={16} className="text-skan-400" /> Recetas ({prescriptionsList.length})
+        </h3>
+
+        {prescriptionsList.length === 0 ? (
+          <p class="text-sm text-slate-500">No se recetaron medicamentos en esta consulta.</p>
+        ) : (
+          <div class="space-y-3">
+            {prescriptionsList.map((rx, i) => (
+              <div class="bg-skan-950 border border-white/10 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <p class="text-sm font-bold text-white">{rx.medication_name}</p>
+                    <div class="flex flex-wrap gap-4 mt-1 text-xs text-slate-400">
+                      {rx.dosage && <span>Dosis: {rx.dosage}</span>}
+                      {rx.frequency && <span>Frecuencia: {rx.frequency}</span>}
+                      {rx.duration && <span>Duracion: {rx.duration}</span>}
+                    </div>
+                    {rx.instructions && (
+                      <p class="text-xs text-slate-500 mt-2 italic">{rx.instructions}</p>
+                    )}
+                  </div>
+                  <span class="text-xs text-slate-600">#{i + 1}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <!-- Archivos de consulta -->
+      {filesList.length > 0 && (
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-6">
+          <h3 class="font-bold text-white text-sm border-b border-white/5 pb-3 mb-4">Archivos Adjuntos</h3>
+          <div class="space-y-2">
+            {filesList.map(file => (
+              <div class="flex items-center gap-3 bg-skan-950 border border-white/10 rounded-lg p-3">
+                <FileText size={16} className="text-skan-400" />
+                <div class="flex-1">
+                  <p class="text-sm text-white">{file.file_name}</p>
+                  <p class="text-xs text-slate-600">{file.file_type}</p>
+                </div>
+                {file.file_url && (
+                  <a href={file.file_url} target="_blank" class="text-xs text-skan-400 hover:text-white">Ver</a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+    </div>
+  </div>
+</DashboardLayout>

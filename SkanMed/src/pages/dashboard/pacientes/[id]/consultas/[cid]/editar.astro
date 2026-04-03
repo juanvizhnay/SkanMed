@@ -1,0 +1,262 @@
+---
+import DashboardLayout from '../../../../../../layouts/DashboardLayout.astro';
+import { Save, ArrowLeft, Plus } from 'lucide-react';
+import { getCurrentDoctor } from '../../../../../../lib/auth/session';
+import { db } from '../../../../../../lib/db';
+import { patients, consultations, prescriptions } from '../../../../../../lib/schema';
+import { eq, and } from 'drizzle-orm';
+
+const doctor = await getCurrentDoctor(Astro.cookies);
+if (!doctor) return Astro.redirect('/');
+
+const patientId = parseInt(Astro.params.id || '0');
+const consultationId = parseInt(Astro.params.cid || '0');
+
+const patientResult = await db.select().from(patients)
+  .where(and(eq(patients.id, patientId), eq(patients.doctor_id, doctor.id)))
+  .limit(1);
+
+const patient = patientResult[0];
+if (!patient) return Astro.redirect('/dashboard/pacientes');
+
+const [consultationResult, existingPrescriptions] = await Promise.all([
+  db.select().from(consultations)
+    .where(and(eq(consultations.id, consultationId), eq(consultations.patient_id, patientId)))
+    .limit(1),
+  db.select().from(prescriptions)
+    .where(eq(prescriptions.consultation_id, consultationId)),
+]);
+
+const consultation = consultationResult[0];
+if (!consultation) return Astro.redirect(`/dashboard/pacientes/${patientId}?tab=consultas`);
+
+let error = "";
+
+if (Astro.request.method === "POST") {
+  try {
+    const data = await Astro.request.formData();
+
+    // Update consultation
+    await db.update(consultations).set({
+      consultation_date: data.get("consultation_date")?.toString()!,
+      consultation_type: data.get("consultation_type")?.toString()!,
+      reason: data.get("reason")?.toString() || null,
+      symptoms: data.get("symptoms")?.toString() || null,
+      examination: data.get("examination")?.toString() || null,
+      diagnosis: data.get("diagnosis")?.toString() || null,
+      treatment_plan: data.get("treatment_plan")?.toString() || null,
+      observations: data.get("observations")?.toString() || null,
+      next_appointment: data.get("next_appointment")?.toString() || null,
+      status: data.get("status")?.toString() || 'completada',
+    }).where(eq(consultations.id, consultationId));
+
+    // Replace prescriptions: delete old, insert new
+    await db.delete(prescriptions).where(eq(prescriptions.consultation_id, consultationId));
+
+    const medNames = data.getAll("med_name");
+    const medDosages = data.getAll("med_dosage");
+    const medFrequencies = data.getAll("med_frequency");
+    const medDurations = data.getAll("med_duration");
+    const medInstructions = data.getAll("med_instructions");
+
+    for (let i = 0; i < medNames.length; i++) {
+      const name = medNames[i]?.toString().trim();
+      if (name) {
+        await db.insert(prescriptions).values({
+          consultation_id: consultationId,
+          doctor_id: doctor.id,
+          medication_name: name,
+          dosage: medDosages[i]?.toString() || null,
+          frequency: medFrequencies[i]?.toString() || null,
+          duration: medDurations[i]?.toString() || null,
+          instructions: medInstructions[i]?.toString() || null,
+        });
+      }
+    }
+
+    return Astro.redirect(`/dashboard/pacientes/${patientId}/consultas/${consultationId}`);
+  } catch (e: any) {
+    error = e.message || "Error al actualizar consulta";
+  }
+}
+---
+
+<DashboardLayout title="Editar Consulta">
+  <div class="max-w-4xl mx-auto">
+
+    <div class="mb-8 flex items-center gap-4">
+      <a href={`/dashboard/pacientes/${patientId}/consultas/${consultationId}`} class="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors">
+        <ArrowLeft size={20} />
+      </a>
+      <div>
+        <h1 class="text-2xl font-display font-bold text-white mb-1">Editar Consulta</h1>
+        <p class="text-slate-400 text-sm">Paciente: {patient.full_name} - {consultation.consultation_date}</p>
+      </div>
+    </div>
+
+    {error && (
+      <div class="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>
+    )}
+
+    <form method="POST" class="space-y-6" id="edit-consultation-form">
+
+      <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-6">
+        <h3 class="font-bold text-white text-sm border-b border-white/5 pb-4 mb-4">Datos de la Consulta</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fecha *</label>
+            <input type="date" name="consultation_date" required value={consultation.consultation_date} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Tipo *</label>
+            <select name="consultation_type" required class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors appearance-none">
+              <option value="primera_vez" selected={consultation.consultation_type === 'primera_vez'}>Primera Vez</option>
+              <option value="seguimiento" selected={consultation.consultation_type === 'seguimiento'}>Seguimiento</option>
+              <option value="control" selected={consultation.consultation_type === 'control'}>Control</option>
+              <option value="urgencia" selected={consultation.consultation_type === 'urgencia'}>Urgencia</option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Estado</label>
+            <select name="status" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors appearance-none">
+              <option value="completada" selected={consultation.status === 'completada'}>Completada</option>
+              <option value="pendiente" selected={consultation.status === 'pendiente'}>Pendiente</option>
+              <option value="cancelada" selected={consultation.status === 'cancelada'}>Cancelada</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Motivo de Consulta</label>
+          <textarea name="reason" rows="2" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{consultation.reason || ''}</textarea>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Sintomas Reportados</label>
+          <textarea name="symptoms" rows="2" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{consultation.symptoms || ''}</textarea>
+        </div>
+      </div>
+
+      <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-6">
+        <h3 class="font-bold text-white text-sm border-b border-white/5 pb-4 mb-4">Evaluacion Clinica</h3>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Examen Fisico</label>
+          <textarea name="examination" rows="3" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{consultation.examination || ''}</textarea>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Diagnostico</label>
+          <textarea name="diagnosis" rows="2" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{consultation.diagnosis || ''}</textarea>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Plan de Tratamiento</label>
+          <textarea name="treatment_plan" rows="3" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{consultation.treatment_plan || ''}</textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Observaciones</label>
+            <textarea name="observations" rows="2" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{consultation.observations || ''}</textarea>
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Proxima Cita</label>
+            <input type="date" name="next_appointment" value={consultation.next_appointment || ''} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Recetas -->
+      <div class="bg-skan-900 border border-white/5 rounded-xl p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/5 pb-4 mb-4">
+          <h3 class="font-bold text-white text-sm">Recetas / Medicamentos</h3>
+          <button type="button" id="add-prescription-btn" class="text-skan-400 hover:text-white text-xs font-medium flex items-center gap-1 bg-skan-500/10 px-3 py-1.5 rounded-lg border border-skan-500/20 transition-colors">
+            <Plus size={14} /> Agregar Medicamento
+          </button>
+        </div>
+
+        <div id="prescriptions-container">
+          {existingPrescriptions.map((rx, i) => (
+            <div class="bg-skan-950 border border-white/10 rounded-lg p-4 space-y-3 mb-3 prescription-row">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-skan-400">Medicamento #{i + 1}</span>
+                <button type="button" class="remove-prescription text-red-400 hover:text-red-300 text-xs">Eliminar</button>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input type="text" name="med_name" required value={rx.medication_name} class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+                <input type="text" name="med_dosage" value={rx.dosage || ''} placeholder="Dosis" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input type="text" name="med_frequency" value={rx.frequency || ''} placeholder="Frecuencia" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+                <input type="text" name="med_duration" value={rx.duration || ''} placeholder="Duracion" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+              </div>
+              <input type="text" name="med_instructions" value={rx.instructions || ''} placeholder="Instrucciones especiales" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+            </div>
+          ))}
+        </div>
+
+        <p class={`text-xs text-slate-600 ${existingPrescriptions.length > 0 ? 'hidden' : ''}`} id="no-prescriptions-msg">No se han agregado medicamentos.</p>
+      </div>
+
+      <div class="flex justify-end gap-4 pt-4">
+        <a href={`/dashboard/pacientes/${patientId}/consultas/${consultationId}`} class="px-6 py-3 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors">
+          Cancelar
+        </a>
+        <button type="submit" class="bg-[#41A4D2] hover:bg-[#3593c1] text-white font-bold py-3 px-8 rounded-lg transition-all shadow-[0_4px_20px_-2px_rgba(65,164,210,0.15)] flex items-center gap-2">
+          <Save size={18} /> Guardar Cambios
+        </button>
+      </div>
+    </form>
+
+  </div>
+
+  <script>
+    const container = document.getElementById('prescriptions-container')!;
+    const addBtn = document.getElementById('add-prescription-btn')!;
+    const noMsg = document.getElementById('no-prescriptions-msg')!;
+
+    // Wire up existing remove buttons
+    document.querySelectorAll('.remove-prescription').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.closest('.prescription-row')?.remove();
+        if (container.children.length === 0) noMsg.classList.remove('hidden');
+      });
+    });
+
+    let counter = container.children.length;
+
+    function addPrescriptionRow() {
+      counter++;
+      noMsg.classList.add('hidden');
+
+      const row = document.createElement('div');
+      row.className = 'bg-skan-950 border border-white/10 rounded-lg p-4 space-y-3 mb-3 prescription-row';
+      row.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-skan-400">Medicamento #${counter}</span>
+          <button type="button" class="remove-prescription text-red-400 hover:text-red-300 text-xs">Eliminar</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input type="text" name="med_name" required placeholder="Nombre del medicamento *" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+          <input type="text" name="med_dosage" placeholder="Dosis" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input type="text" name="med_frequency" placeholder="Frecuencia" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+          <input type="text" name="med_duration" placeholder="Duracion" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+        </div>
+        <input type="text" name="med_instructions" placeholder="Instrucciones especiales" class="w-full bg-skan-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+      `;
+
+      row.querySelector('.remove-prescription')?.addEventListener('click', () => {
+        row.remove();
+        if (container.children.length === 0) noMsg.classList.remove('hidden');
+      });
+
+      container.appendChild(row);
+    }
+
+    addBtn.addEventListener('click', addPrescriptionRow);
+  </script>
+</DashboardLayout>

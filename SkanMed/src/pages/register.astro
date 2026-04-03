@@ -1,0 +1,196 @@
+---
+import '../styles/global.css';
+import { UserPlus, ArrowRight, ArrowLeft } from 'lucide-react';
+import { registerUser } from '../lib/auth/controller';
+import { protectSignup } from '../lib/security/signupProtection';
+import PasswordInput from '../components/PasswordInput';
+
+let error = "";
+let success = false;
+let email = "";
+
+if (Astro.request.method === "POST") {
+  try {
+    const data = await Astro.request.formData();
+    const formEmail = data.get("email")?.toString() || "";
+    const password = data.get("password")?.toString() || "";
+    const full_name = data.get("full_name")?.toString() || "";
+    const specialty = data.get("specialty")?.toString() || "";
+    const license_number = data.get("license_number")?.toString();
+
+    // PROTECCIÓN CONTRA ABUSO: Verificar límites antes de procesar
+    const protection = await protectSignup(Astro.request, formEmail);
+    if (!protection.allowed) {
+      error = protection.reason || "Solicitud bloqueada por seguridad";
+      throw new Error(error);
+    }
+
+    const result = await registerUser({
+      email: formEmail,
+      password,
+      full_name,
+      specialty,
+      license_number
+    });
+
+    email = formEmail;
+    success = true;
+
+  } catch (e: any) {
+    error = e.message || "Error al procesar el registro";
+  }
+}
+---
+
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro Profesional | SkanMed</title>
+</head>
+<body class="bg-skan-950 min-h-screen flex items-center justify-center p-4 font-sans text-slate-300">
+
+    <div class="w-full max-w-lg bg-skan-900/80 backdrop-blur-xl border border-white/5 rounded-2xl p-8 shadow-2xl">
+
+        {!success ? (
+          <>
+            <div class="mb-8 border-b border-white/5 pb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="bg-skan-500/10 p-2 rounded-lg text-skan-500">
+                        <UserPlus size={20} />
+                    </div>
+                    <h1 class="text-xl font-bold text-white font-display">Crear Cuenta</h1>
+                </div>
+                <p class="text-slate-500 text-sm">Regístrate para acceder a tu dashboard profesional.</p>
+            </div>
+
+            <form method="POST" class="space-y-5" id="register-form">
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Nombre Completo</label>
+                    <input type="text" name="full_name" required class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" placeholder="Dr. Juan Pérez López" />
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Especialidad Médica</label>
+                    <select name="specialty" required class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors appearance-none">
+                        <option value="">Seleccione...</option>
+                        <option value="Neurocirugía">Neurocirugía</option>
+                        <option value="Cardiología">Cardiología</option>
+                        <option value="Traumatología">Traumatología</option>
+                        <option value="Oncología">Oncología</option>
+                        <option value="Ginecología">Ginecología</option>
+                        <option value="Pediatría">Pediatría</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">No. Licencia / Colegiatura</label>
+                    <input type="text" name="license_number" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" placeholder="CMP-12345" />
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Correo Electrónico</label>
+                    <input type="email" name="email" required class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" placeholder="tu@email.com" />
+                </div>
+
+                <PasswordInput
+                    name="password"
+                    label="Contraseña"
+                    required={true}
+                    minLength={8}
+                    placeholder="Mínimo 8 caracteres"
+                    showHelper={true}
+                    client:load
+                />
+
+                {error && (
+                    <div class="p-3 bg-red-500/5 border border-red-500/10 rounded-lg text-red-400 text-xs text-center font-medium">
+                        {error}
+                    </div>
+                )}
+
+                <div class="pt-2">
+                    <label class="flex items-start gap-3 cursor-pointer group">
+                        <input type="checkbox" required class="mt-1 bg-skan-950 border-white/10 rounded text-skan-500 focus:ring-skan-500 focus:ring-offset-0" />
+                        <span class="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">
+                            Acepto los <a href="/legal" class="text-skan-500 underline">Términos de Servicio</a> y <a href="/legal" class="text-skan-500 underline">Políticas de Privacidad</a>.
+                        </span>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full bg-[#41A4D2] hover:bg-[#3593c1] text-white font-semibold py-3 rounded-lg transition-all shadow-[0_4px_20px_-2px_rgba(65,164,210,0.15)] hover:shadow-[0_4px_24px_-2px_rgba(65,164,210,0.25)] flex items-center justify-center gap-2 mt-4 text-sm">
+                    Crear Cuenta
+                    <ArrowRight size={16} />
+                </button>
+
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-white/5 text-center">
+                <a href="/" class="text-xs text-slate-500 hover:text-white transition-colors flex items-center justify-center gap-2">
+                  <ArrowLeft size={12} /> Ya tengo una cuenta
+                </a>
+            </div>
+          </>
+        ) : (
+          <div class="text-center py-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-green-500/10 rounded-full text-green-500 mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-4">¡Ya casi está!</h2>
+            <p class="text-slate-400 mb-6">Te enviamos un correo a <span class="font-mono text-skan-400">{email}</span></p>
+            <p class="text-sm text-slate-500 mb-8">Revisa tu bandeja (y spam) y haz clic en el enlace para verificar tu cuenta.</p>
+            <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-skan-500 hover:text-white transition-colors">
+              <ArrowLeft size={14} /> Volver al Login
+            </a>
+          </div>
+        )}
+
+    </div>
+
+    <script>
+        const registerForm = document.getElementById('register-form');
+
+        registerForm?.addEventListener('submit', (e) => {
+            const fullName = (registerForm.querySelector('[name="full_name"]') as HTMLInputElement)?.value.trim();
+            const specialty = (registerForm.querySelector('[name="specialty"]') as HTMLSelectElement)?.value;
+            const email = (registerForm.querySelector('[name="email"]') as HTMLInputElement)?.value.trim();
+            const password = (registerForm.querySelector('[name="password"]') as HTMLInputElement)?.value;
+
+            if (!fullName || fullName.length < 3) {
+                e.preventDefault();
+                alert('El nombre completo debe tener al menos 3 caracteres');
+                return;
+            }
+
+            if (!specialty) {
+                e.preventDefault();
+                alert('Por favor seleccione una especialidad médica');
+                return;
+            }
+
+            if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                e.preventDefault();
+                alert('Por favor ingrese un correo electrónico válido');
+                return;
+            }
+
+            if (password.length < 8) {
+                e.preventDefault();
+                alert('La contraseña debe tener al menos 8 caracteres');
+                return;
+            }
+
+            // Verificar que contenga al menos una mayúscula o un símbolo
+            const hasUpperOrSymbol = /[A-Z]/.test(password) || /[^A-Za-z0-9]/.test(password);
+            if (!hasUpperOrSymbol) {
+                e.preventDefault();
+                alert('La contraseña debe contener al menos una mayúscula o un símbolo');
+                return;
+            }
+        });
+    </script>
+
+</body>
+</html>

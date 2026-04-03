@@ -1,0 +1,81 @@
+---
+import '../styles/global.css';
+import { Mail, CheckCircle2, XCircle } from 'lucide-react';
+import { verifyEmail } from '../lib/auth/controller';
+
+const token = Astro.url.searchParams.get('token');
+const status = Astro.url.searchParams.get('status');
+const msg = Astro.url.searchParams.get('msg');
+
+let success = false;
+let error = "";
+
+if (token && !status) {
+  // Procesar verificación
+  try {
+    const result = await verifyEmail(token);
+
+    // Crear cookie de sesión automáticamente
+    Astro.cookies.set('session_token', result.token, {
+      path: '/',
+      httpOnly: true,
+      secure: import.meta.env.PROD,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365 * 5 // 5 años
+    });
+
+    // Redirigir directo al dashboard
+    return Astro.redirect('/dashboard');
+
+  } catch (e: any) {
+    error = e.message || "Token inválido o expirado";
+  }
+} else if (status === 'error') {
+  error = msg || "Error en la verificación";
+} else if (status === 'success') {
+  success = true;
+}
+---
+
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Verificación de Correo | SkanMed</title>
+</head>
+<body class="bg-skan-950 min-h-screen flex items-center justify-center p-4 font-sans text-slate-300">
+
+    <div class="w-full max-w-md bg-skan-900/80 backdrop-blur-xl border border-white/5 rounded-2xl p-10 shadow-2xl text-center">
+
+        {success ? (
+          <>
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-green-500/10 rounded-full text-green-500 mb-6">
+                <CheckCircle2 size={32} />
+            </div>
+            <h1 class="text-2xl font-bold text-white font-display mb-4">Correo Verificado</h1>
+            <p class="text-slate-400 mb-8">Su cuenta ha sido activada exitosamente. Ya puede iniciar sesión en SkanMed.</p>
+            <a href="/" class="inline-flex items-center gap-2 px-6 py-3 bg-skan-600 hover:bg-skan-500 text-white font-bold rounded-lg transition-all">
+              Ir al Login
+            </a>
+          </>
+        ) : (
+          <>
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-red-500/10 rounded-full text-red-500 mb-6">
+                <XCircle size={32} />
+            </div>
+            <h1 class="text-2xl font-bold text-white font-display mb-4">Error de Verificación</h1>
+            <p class="text-red-400 text-sm mb-8">{error || "No se pudo verificar el correo."}</p>
+            <div class="space-y-3">
+              <a href="/register" class="block text-sm text-skan-400 hover:text-white transition-colors">
+                Crear una nueva cuenta
+              </a>
+              <a href="/" class="block text-sm text-slate-500 hover:text-white transition-colors">
+                Volver al inicio
+              </a>
+            </div>
+          </>
+        )}
+
+    </div>
+
+</body>
+</html>
