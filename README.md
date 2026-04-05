@@ -1,12 +1,42 @@
 # SkanMed Platform
 
-Plataforma médica completa con Landing Pages públicas y Sistema Privado de gestión.
+Plataforma SaaS para médicos que combina una landing page pública personalizada con un sistema privado de gestión clínica. Todo en un único proyecto Astro desplegado en Cloudflare Pages bajo `skanmed.net`.
 
 ---
 
-## Inicio Rápido
+## Arquitectura
 
-### Sistema Privado (Dashboard para Médicos)
+Un solo proyecto Astro (SSR) con todas las rutas bajo el mismo dominio:
+
+| Ruta | Descripción |
+|---|---|
+| `skanmed.net/` | Landing general de la plataforma |
+| `skanmed.net/login` | Inicio de sesión |
+| `skanmed.net/register` | Registro de nuevos médicos |
+| `skanmed.net/dashboard` | Panel privado del médico |
+| `skanmed.net/[slug]` | Landing pública del médico |
+| `skanmed.net/[slug]/perfil` | Trayectoria profesional del médico |
+| `skanmed.net/[slug]/casos` | Casos clínicos públicos del médico |
+
+---
+
+## Stack Tecnológico
+
+| Capa | Tecnología |
+|---|---|
+| Framework | Astro (SSR) + React Islands |
+| Estilos | Tailwind CSS |
+| Base de datos | PostgreSQL en [Neon](https://neon.tech) |
+| ORM | Drizzle ORM |
+| Autenticación | JWT (`jose`) + bcryptjs |
+| Rate limiting / caché | Redis en [Upstash](https://upstash.com) |
+| Correos | [Resend](https://resend.com) |
+| Almacenamiento de imágenes | Cloudflare R2 |
+| Despliegue | Cloudflare Pages |
+
+---
+
+## Inicio Rápido (Desarrollo Local)
 
 ```bash
 cd SkanMed
@@ -14,123 +44,133 @@ npm install
 npm run dev
 ```
 
-**Abre:** http://localhost:3000
-**Propósito:** Login, gestión de pacientes, operaciones, perfil profesional.
+Abre `http://localhost:4321`
 
 ---
 
-### Landing Pages Públicas
-
-```bash
-cd LandingPages
-npm install
-npm run dev
-```
-
-**Abre:** http://localhost:4321
-**Propósito:** Páginas públicas de cada médico (ej: `http://localhost:4321/dr-padre`)
-
----
-
-## Configuración Inicial (Primera vez)
+## Configuración Inicial
 
 ### 1. Base de Datos (Neon PostgreSQL)
 
-1. Ve a [console.neon.tech](https://console.neon.tech)
-2. Crea un proyecto
-3. En el **SQL Editor**, ejecuta **en orden**:
-   - `LandingPages/SkanMed_DB.sql` (crea las tablas)
-   - `SkanMed/db_auth_migration.sql` (agrega columnas de autenticación)
+1. Crea un proyecto en [console.neon.tech](https://console.neon.tech)
+2. En el SQL Editor, ejecuta en orden:
+   - `SkanMed/SkanMed_DB.sql` — crea todas las tablas
+   - `SkanMed/db_auth_migration.sql` — agrega columnas de autenticación
 
 ### 2. Variables de Entorno
 
-Cada proyecto necesita su `.env`:
+Crea `SkanMed/.env` basándote en `SkanMed/.env.example`:
 
-**SkanMed/.env:**
 ```properties
-DATABASE_URL=tu_connection_string_de_neon
-JWT_SECRET=tu_secret_super_seguro_2026
+# Base de datos
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
-# Redis (opcional, para rate limiting)
-REDIS_HOST=
-REDIS_PORT=
-REDIS_PASSWORD=
+# Autenticación
+JWT_SECRET=una_cadena_aleatoria_de_64_caracteres
 
-# Resend (opcional, para envío de correos)
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=noreply@skanmed.com
+# Redis (Upstash REST API)
+REDIS_URL=https://your-redis.upstash.io
+REDIS_TOKEN=your_upstash_rest_token
 
-FRONTEND_URL=http://localhost:3000
+# Resend (correos de verificación y recuperación)
+RESEND_API_KEY=re_xxxxxxxxxxxx
+RESEND_FROM_EMAIL=noreply@yourdomain.com
+
+# URL base (para links en correos)
+FRONTEND_URL=http://localhost:4321
+
+# Cloudflare R2 (subida de imágenes)
+R2_ACCOUNT_ID=your_account_id
+R2_ACCESS_KEY_ID=your_access_key_id
+R2_SECRET_ACCESS_KEY=your_secret_access_key
+R2_BUCKET_NAME=your_bucket_name
 ```
-
-**LandingPages/.env:**
-```properties
-DATABASE_URL=tu_connection_string_de_neon
-```
-
-> **Nota:** Ambos proyectos usan la **misma base de datos** en Neon.
 
 ---
 
 ## Estructura del Proyecto
 
 ```
-trabajo_final_bases/
-│
-├── SkanMed/              # Sistema Privado (puerto 3000)
-│   ├── src/
-│   │   ├── pages/        # Login, Dashboard, Operaciones
-│   │   ├── layouts/      # DashboardLayout
-│   │   └── lib/
-│   │       ├── auth/     # Sistema de autenticación
-│   │       ├── db.ts     # Conexión a Neon
-│   │       └── schema.ts # Tablas de la BD
-│   ├── .env              # Configuración privada
-│   └── package.json      # Puerto 3000 por defecto
-│
-└── LandingPages/         # Páginas Públicas (puerto 4321)
-    ├── src/
-    │   ├── pages/
-    │   │   └── [slug]/   # Landing page de cada médico
-    │   ├── components/   # Hero, Operations, Contact
-    │   └── lib/
-    │       ├── db.ts
-    │       └── schema.ts
-    ├── .env
-    └── package.json      # Puerto 4321 por defecto
+SkanMed/
+├── src/
+│   ├── pages/
+│   │   ├── index.astro              # Landing general
+│   │   ├── login.astro              # Inicio de sesión
+│   │   ├── register.astro           # Registro
+│   │   ├── verify-email.astro       # Verificación de correo
+│   │   ├── forgot-password.astro    # Recuperación de contraseña
+│   │   ├── reset-password.astro
+│   │   ├── logout.astro
+│   │   ├── [slug]/                  # Landing pública del médico
+│   │   │   ├── index.astro
+│   │   │   ├── perfil.astro
+│   │   │   └── casos.astro
+│   │   ├── dashboard/               # Panel privado
+│   │   │   ├── index.astro          # Vista general
+│   │   │   ├── configuracion.astro  # Perfil y configuración
+│   │   │   ├── pacientes/           # CRUD pacientes, consultas, recetas
+│   │   │   └── operaciones/         # CRUD operaciones quirúrgicas
+│   │   └── api/
+│   │       └── image/               # Proxy seguro de imágenes R2
+│   ├── layouts/
+│   │   ├── DashboardLayout.astro    # Layout del panel (sidebar responsivo)
+│   │   ├── DoctorLayout.astro       # Layout de landing del médico
+│   │   └── MainLayout.astro         # Layout de landing general
+│   ├── components/
+│   │   ├── landing/                 # Hero, Contact, PublicOperations
+│   │   ├── PasswordInput.tsx        # Input con toggle de visibilidad
+│   │   ├── ProfileImageUploader.tsx # Subida de foto de perfil a R2
+│   │   ├── ImageUploader.tsx        # Subida de imágenes para operaciones
+│   │   └── CopyButton.tsx           # Copiar URL al portapapeles
+│   ├── lib/
+│   │   ├── db.ts                    # Conexión a Neon (connection pool)
+│   │   ├── schema.ts                # Esquema completo de la BD (Drizzle)
+│   │   ├── doctors.ts               # Queries públicas de médicos
+│   │   ├── auth/                    # JWT, sesiones, correos, Redis
+│   │   ├── security/                # Protección registro/login (rate limit)
+│   │   └── storage/                 # Cliente Cloudflare R2
+│   └── styles/
+│       └── global.css
+├── .env                             # Variables locales (no subir a git)
+├── .env.example                     # Plantilla de variables
+├── astro.config.mjs
+├── tailwind.config.mjs
+└── wrangler.toml                    # Config Cloudflare Workers
 ```
 
 ---
 
-## Flujo de Trabajo
+## Flujo de Registro
 
-1. **Médico se registra** en http://localhost:3000
-2. **Verifica su correo** (link en la terminal si no tienes Resend configurado)
-3. **Inicia sesión** en el Dashboard
-4. **Publica operaciones** desde el panel privado
-5. **Las operaciones aparecen automáticamente** en su landing page pública (http://localhost:4321/su-slug)
-
----
-
-## Servicios Externos (Opcional)
-
-Para funcionalidad completa en producción:
-
-- **Redis:** [Upstash Redis](https://console.upstash.com) - Rate limiting
-- **Resend:** [Resend API](https://resend.com) - Envío de correos
-
-Ver `SkanMed/SETUP_SERVICES.md` para detalles.
+1. Médico se registra en `/register`
+2. Los datos se guardan temporalmente en Redis
+3. Resend envía un correo con link de verificación
+4. Al hacer clic en el link, la cuenta se crea en PostgreSQL y se inicia sesión automáticamente
+5. El médico es redirigido directo al `/dashboard`
 
 ---
 
-## Comandos Útiles
+## Servicios Externos Necesarios
 
-| Acción                     | Comando                           |
-|----------------------------|-----------------------------------|
-| Correr sistema privado     | `cd SkanMed && npm run dev`       |
-| Correr landing pages       | `cd LandingPages && npm run dev`  |
-| Compilar para producción   | `npm run build` (en cada carpeta) |
+| Servicio | Uso | Link |
+|---|---|---|
+| [Neon](https://neon.tech) | Base de datos PostgreSQL | Gratis hasta 0.5 GB |
+| [Upstash](https://upstash.com) | Redis para rate limiting | Gratis hasta 10k req/día |
+| [Resend](https://resend.com) | Envío de correos | Gratis hasta 3k correos/mes |
+| [Cloudflare R2](https://cloudflare.com) | Almacenamiento de imágenes | ~$0.015/GB/mes, egress gratis |
+| [Cloudflare Pages](https://pages.cloudflare.com) | Hosting y despliegue | Gratis |
 
 ---
 
-**¡Listo!** Ahora solo necesitas `npm run dev` en la carpeta correcta.
+## Despliegue en Cloudflare Pages
+
+**Build settings:**
+- Build command: `cd SkanMed && npm install && npm run build`
+- Build output: `SkanMed/dist`
+
+**Compatibility flags** (en Settings > Runtime):
+- `nodejs_compat`
+- `nodejs_compat_populate_process_env`
+- Compatibility date: `2025-04-01`
+
+**Variables de entorno:** configurar las mismas del `.env` en el panel de Cloudflare Pages.
