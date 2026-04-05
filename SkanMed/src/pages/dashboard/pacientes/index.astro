@@ -7,7 +7,7 @@ import { patients } from '../../../lib/schema';
 import { eq, desc } from 'drizzle-orm';
 
 const doctor = await getCurrentDoctor(Astro.cookies);
-if (!doctor) return Astro.redirect('/');
+if (!doctor) return Astro.redirect('/login');
 
 const patientsList = await db.select().from(patients)
   .where(eq(patients.doctor_id, doctor.id))

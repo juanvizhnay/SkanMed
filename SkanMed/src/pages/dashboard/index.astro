@@ -8,7 +8,7 @@ import { operations, patients, consultations } from '../../lib/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 
 const doctor = await getCurrentDoctor(Astro.cookies);
-if (!doctor) return Astro.redirect('/');
+if (!doctor) return Astro.redirect('/login');
 
 const [opsCountResult, patientsCountResult, consultationsCountResult, recentOps, recentPatients, recentConsultations] = await Promise.all([
   db.select({ count: sql<number>`count(*)` }).from(operations).where(eq(operations.doctor_id, doctor.id)),
@@ -37,8 +37,7 @@ const totalOps = opsCountResult[0].count;
 const totalPatients = patientsCountResult[0].count;
 const totalConsultations = consultationsCountResult[0].count;
 
-const LANDING_BASE = process.env.LANDING_URL || import.meta.env.LANDING_URL || 'http://localhost:4321';
-const landingUrl = `${LANDING_BASE}/${doctor.slug}`;
+const landingUrl = `${Astro.url.origin}/${doctor.slug}`;
 
 const typeLabels: Record<string, string> = {
   primera_vez: 'Primera Vez',

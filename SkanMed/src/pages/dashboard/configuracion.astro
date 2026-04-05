@@ -10,7 +10,7 @@ import ProfileImageUploader from '../../components/ProfileImageUploader';
 
 const doctor = await getCurrentDoctor(Astro.cookies);
 if (!doctor) {
-  return Astro.redirect('/');
+  return Astro.redirect('/login');
 }
 
 // Obtener perfil y contacto en paralelo

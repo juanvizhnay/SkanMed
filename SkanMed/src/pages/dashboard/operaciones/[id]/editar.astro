@@ -8,7 +8,7 @@ import { eq, and, asc } from 'drizzle-orm';
 import ImageUploader from '../../../../components/ImageUploader';
 
 const doctor = await getCurrentDoctor(Astro.cookies);
-if (!doctor) return Astro.redirect('/');
+if (!doctor) return Astro.redirect('/login');
 
 const operationId = parseInt(Astro.params.id || '0');
 

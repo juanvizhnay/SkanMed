@@ -56,7 +56,7 @@ export async function invalidateDoctorCache(doctorId: number) {
   }
 }
 
-export async function requireAuth(cookies: AstroCookies, redirectTo: string = '/') {
+export async function requireAuth(cookies: AstroCookies, redirectTo: string = '/login') {
   const doctor = await getCurrentDoctor(cookies);
   if (!doctor) return { authenticated: false, doctor: null, redirect: redirectTo };
   return { authenticated: true, doctor, redirect: null };

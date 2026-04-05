@@ -6,7 +6,7 @@ import { db } from '../../../lib/db';
 import { patients } from '../../../lib/schema';
 
 const doctor = await getCurrentDoctor(Astro.cookies);
-if (!doctor) return Astro.redirect('/');
+if (!doctor) return Astro.redirect('/login');
 
 let error = "";
 

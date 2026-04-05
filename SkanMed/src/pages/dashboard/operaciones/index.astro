@@ -9,7 +9,7 @@ import { eq, desc } from 'drizzle-orm';
 // Obtener doctor logueado
 const doctor = await getCurrentDoctor(Astro.cookies);
 if (!doctor) {
-  return Astro.redirect('/');
+  return Astro.redirect('/login');
 }
 
 // Obtener operaciones de la DB

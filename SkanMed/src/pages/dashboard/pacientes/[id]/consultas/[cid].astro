@@ -7,7 +7,7 @@ import { patients, consultations, prescriptions, consultationFiles } from '../..
 import { eq, and } from 'drizzle-orm';
 
 const doctor = await getCurrentDoctor(Astro.cookies);
-if (!doctor) return Astro.redirect('/');
+if (!doctor) return Astro.redirect('/login');
 
 const patientId = parseInt(Astro.params.id || '0');
 const consultationId = parseInt(Astro.params.cid || '0');

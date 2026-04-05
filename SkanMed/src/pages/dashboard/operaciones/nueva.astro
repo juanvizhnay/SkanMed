@@ -8,7 +8,7 @@ import { eq, asc } from 'drizzle-orm';
 import ImageUploader from '../../../components/ImageUploader';
 
 const doctor = await getCurrentDoctor(Astro.cookies);
-if (!doctor) return Astro.redirect('/');
+if (!doctor) return Astro.redirect('/login');
 
 const patientsList = await db.select({ id: patients.id, full_name: patients.full_name })
   .from(patients)

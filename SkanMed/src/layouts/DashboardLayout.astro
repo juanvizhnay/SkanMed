@@ -14,7 +14,7 @@ const { title } = Astro.props;
 const doctor = await getCurrentDoctor(Astro.cookies);
 
 if (!doctor) {
-  return Astro.redirect('/');
+  return Astro.redirect('/login');
 }
 
 const doctorName = doctor.full_name;

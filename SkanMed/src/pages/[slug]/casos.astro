@@ -1,0 +1,26 @@
+---
+import DoctorLayout from '../../layouts/DoctorLayout.astro';
+import { PublicOperations } from '../../components/landing/PublicOperations';
+import { getDoctorBySlug, getPublicOperations } from '../../lib/doctors';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/404');
+
+const doctor = await getDoctorBySlug(slug);
+if (!doctor) return new Response('Doctor not found', { status: 404 });
+
+const operationsList = await getPublicOperations(doctor.id);
+---
+
+<DoctorLayout title={`Casos Clinicos | Dr. ${doctor.full_name}`} doctorSlug={slug} doctorName={doctor.full_name}>
+  <div class="bg-skan-900 min-h-screen">
+    <div class="container mx-auto px-6 py-20 text-center">
+      <h1 class="text-4xl font-display font-bold text-white mb-4">Casos Clinicos</h1>
+      <p class="text-slate-400 max-w-2xl mx-auto mb-12">
+        Galeria de procedimientos realizados. Estos casos demuestran la complejidad y precision de las intervenciones quirurgicas.
+      </p>
+
+      <PublicOperations client:visible operations={operationsList} />
+    </div>
+  </div>
+</DoctorLayout>
