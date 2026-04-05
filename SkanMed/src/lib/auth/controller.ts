@@ -7,7 +7,7 @@ import * as redis from './redis';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email';
 
 const JWT_SECRET = new TextEncoder().encode(
-  import.meta.env.JWT_SECRET || 'skanmed_default_secret'
+  process.env.JWT_SECRET || import.meta.env.JWT_SECRET || 'skanmed_default_secret'
 );
 
 interface PendingUser {

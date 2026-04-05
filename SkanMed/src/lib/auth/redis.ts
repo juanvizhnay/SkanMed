@@ -2,8 +2,8 @@ import { Redis } from '@upstash/redis';
 
 let redisClient: Redis | null = null;
 
-const REDIS_URL = import.meta.env.REDIS_URL;
-const REDIS_TOKEN = import.meta.env.REDIS_TOKEN;
+const REDIS_URL = process.env.REDIS_URL || import.meta.env.REDIS_URL;
+const REDIS_TOKEN = process.env.REDIS_TOKEN || import.meta.env.REDIS_TOKEN;
 
 if (REDIS_URL && REDIS_TOKEN) {
   redisClient = new Redis({ url: REDIS_URL, token: REDIS_TOKEN });

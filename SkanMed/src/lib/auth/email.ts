@@ -1,8 +1,8 @@
 import { Resend } from 'resend';
 
-const RESEND_API_KEY = import.meta.env.RESEND_API_KEY;
-const FROM_EMAIL = import.meta.env.RESEND_FROM_EMAIL || 'noreply@skanmed.com';
-const FRONTEND_URL = import.meta.env.FRONTEND_URL || 'http://localhost:3000';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || import.meta.env.RESEND_API_KEY;
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || import.meta.env.RESEND_FROM_EMAIL || 'noreply@skanmed.com';
+const FRONTEND_URL = process.env.FRONTEND_URL || import.meta.env.FRONTEND_URL || 'http://localhost:3000';
 
 let resend: Resend | null = null;
 
