@@ -1,3 +1,188 @@
 ---
-return Astro.redirect('/dr-pablo-vizhay-8p50', 301);
+import MainLayout from '../layouts/MainLayout.astro';
+import { Activity, Globe, Shield, Stethoscope, Users, ChevronRight, Layout, FileText, BarChart3 } from 'lucide-react';
+
+const APP_URL = process.env.APP_URL || import.meta.env.APP_URL || 'http://localhost:3000';
 ---
+
+<MainLayout title="SkanMed | Plataforma Digital para Profesionales Medicos">
+
+  <!-- Hero -->
+  <section class="relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-radial from-skan-500/5 via-transparent to-transparent"></div>
+    <div class="container mx-auto px-6 py-24 md:py-32 relative">
+      <div class="max-w-3xl mx-auto text-center">
+        <div class="inline-flex items-center gap-2 bg-skan-500/10 border border-skan-500/20 rounded-full px-4 py-1.5 mb-8">
+          <Activity size={14} className="text-skan-400" />
+          <span class="text-xs font-medium text-skan-400 uppercase tracking-wider">Plataforma Medica Profesional</span>
+        </div>
+
+        <h1 class="text-4xl md:text-6xl font-display font-bold text-white leading-tight mb-6">
+          Tu presencia digital
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-skan-500 to-blue-400"> profesional</span>
+        </h1>
+
+        <p class="text-lg text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+          Landing pages personalizadas y un sistema de gestion clinica privado para medicos.
+          Todo lo que necesitas para digitalizar tu practica profesional.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href={`${APP_URL}/register`} class="px-8 py-3.5 bg-skan-500 hover:bg-skan-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-skan-500/20 flex items-center justify-center gap-2">
+            Crear mi Cuenta <ChevronRight size={18} />
+          </a>
+          <a href={`${APP_URL}`} class="px-8 py-3.5 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-all border border-white/10 flex items-center justify-center gap-2">
+            Iniciar Sesion
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="py-20 md:py-28">
+    <div class="container mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-display font-bold text-white mb-4">
+          Todo lo que necesitas en un solo lugar
+        </h2>
+        <p class="text-slate-400 max-w-xl mx-auto">
+          Dos herramientas integradas para potenciar tu carrera medica.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+
+        <!-- Feature 1: Landing Pages -->
+        <div class="bg-skan-900 border border-white/5 rounded-2xl p-8 hover:border-skan-500/20 transition-all group">
+          <div class="bg-skan-500/10 p-3 rounded-xl w-fit mb-6">
+            <Globe size={28} className="text-skan-400" />
+          </div>
+          <h3 class="text-xl font-display font-bold text-white mb-3">Landing Page Personalizada</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-6">
+            Tu pagina web profesional con tu informacion, especialidades, casos clinicos
+            y datos de contacto. Visible para tus pacientes y colegas.
+          </p>
+          <ul class="space-y-3 text-sm">
+            <li class="flex items-center gap-3 text-slate-300">
+              <div class="w-1.5 h-1.5 rounded-full bg-skan-500 shrink-0"></div>
+              Perfil profesional completo
+            </li>
+            <li class="flex items-center gap-3 text-slate-300">
+              <div class="w-1.5 h-1.5 rounded-full bg-skan-500 shrink-0"></div>
+              Galeria de casos clinicos publicos
+            </li>
+            <li class="flex items-center gap-3 text-slate-300">
+              <div class="w-1.5 h-1.5 rounded-full bg-skan-500 shrink-0"></div>
+              Formulario de contacto con WhatsApp
+            </li>
+            <li class="flex items-center gap-3 text-slate-300">
+              <div class="w-1.5 h-1.5 rounded-full bg-skan-500 shrink-0"></div>
+              URL unica y compartible
+            </li>
+          </ul>
+        </div>
+
+        <!-- Feature 2: Sistema de Gestion -->
+        <div class="bg-skan-900 border border-white/5 rounded-2xl p-8 hover:border-skan-500/20 transition-all group">
+          <div class="bg-purple-500/10 p-3 rounded-xl w-fit mb-6">
+            <Shield size={28} className="text-purple-400" />
+          </div>
+          <h3 class="text-xl font-display font-bold text-white mb-3">Sistema de Gestion Privado</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-6">
+            Dashboard privado para gestionar pacientes, consultas, operaciones,
+            recetas y expedientes clinicos de forma segura.
+          </p>
+          <ul class="space-y-3 text-sm">
+            <li class="flex items-center gap-3 text-slate-300">
+              <div class="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></div>
+              Registro completo de pacientes
+            </li>
+            <li class="flex items-center gap-3 text-slate-300">
+              <div class="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></div>
+              Historial de consultas y recetas
+            </li>
+            <li class="flex items-center gap-3 text-slate-300">
+              <div class="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></div>
+              Registro de operaciones quirurgicas
+            </li>
+            <li class="flex items-center gap-3 text-slate-300">
+              <div class="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></div>
+              Exportar consultas a PDF
+            </li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="how-it-works" class="py-20 md:py-28 border-t border-white/5">
+    <div class="container mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-display font-bold text-white mb-4">
+          Activo en minutos
+        </h2>
+        <p class="text-slate-400 max-w-xl mx-auto">
+          Tres pasos para tener tu presencia digital y sistema de gestion funcionando.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-skan-500/10 border border-skan-500/20 flex items-center justify-center mx-auto mb-5">
+            <span class="text-skan-400 font-display font-bold">1</span>
+          </div>
+          <h3 class="font-bold text-white mb-2">Crea tu Cuenta</h3>
+          <p class="text-sm text-slate-400">
+            Registrate con tu correo y datos profesionales. Verificacion por email.
+          </p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-skan-500/10 border border-skan-500/20 flex items-center justify-center mx-auto mb-5">
+            <span class="text-skan-400 font-display font-bold">2</span>
+          </div>
+          <h3 class="font-bold text-white mb-2">Configura tu Perfil</h3>
+          <p class="text-sm text-slate-400">
+            Completa tu informacion profesional, sube tu foto y personaliza tu landing page.
+          </p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-skan-500/10 border border-skan-500/20 flex items-center justify-center mx-auto mb-5">
+            <span class="text-skan-400 font-display font-bold">3</span>
+          </div>
+          <h3 class="font-bold text-white mb-2">Gestiona y Comparte</h3>
+          <p class="text-sm text-slate-400">
+            Usa el dashboard para gestionar pacientes y comparte tu landing page publica.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Final -->
+  <section class="py-20 md:py-28">
+    <div class="container mx-auto px-6">
+      <div class="max-w-2xl mx-auto text-center bg-gradient-to-br from-skan-900 to-skan-950 border border-white/5 rounded-2xl p-12">
+        <div class="bg-skan-500/10 p-3 rounded-xl w-fit mx-auto mb-6">
+          <Stethoscope size={32} className="text-skan-400" />
+        </div>
+        <h2 class="text-2xl md:text-3xl font-display font-bold text-white mb-4">
+          Digitaliza tu practica medica hoy
+        </h2>
+        <p class="text-slate-400 mb-8">
+          Registrate gratis y obtiene tu landing page profesional y sistema de gestion en minutos.
+        </p>
+        <a href={`${APP_URL}/register`} class="inline-flex items-center gap-2 px-8 py-3.5 bg-skan-500 hover:bg-skan-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-skan-500/20">
+          Comenzar Ahora <ChevronRight size={18} />
+        </a>
+      </div>
+    </div>
+  </section>
+
+</MainLayout>

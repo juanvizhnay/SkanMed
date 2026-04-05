@@ -1,0 +1,67 @@
+---
+import '../styles/global.css';
+import { ViewTransitions } from 'astro:transitions';
+import { Activity } from 'lucide-react';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const APP_URL = process.env.APP_URL || import.meta.env.APP_URL || 'http://localhost:3000';
+---
+
+<!doctype html>
+<html lang="es" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Montserrat:wght@500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <ViewTransitions />
+  </head>
+  <body class="bg-skan-950 text-slate-300 font-sans min-h-screen flex flex-col">
+
+    <nav class="sticky top-0 z-50 border-b border-white/5 bg-skan-950/80 backdrop-blur-md">
+      <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 group">
+          <div class="bg-gradient-to-br from-skan-500 to-blue-600 p-2 rounded-lg text-white group-hover:scale-110 transition-transform">
+            <Activity size={24} />
+          </div>
+          <div class="leading-tight">
+            <h1 class="font-display font-bold text-white text-lg tracking-wide">SKAN<span class="text-skan-500">MED</span></h1>
+            <p class="text-[10px] text-slate-400 uppercase tracking-widest">Medical Suite</p>
+          </div>
+        </a>
+
+        <div class="hidden md:flex items-center gap-8">
+          <a href="#features" class="text-sm font-medium hover:text-skan-400 transition-colors">Funcionalidades</a>
+          <a href="#how-it-works" class="text-sm font-medium hover:text-skan-400 transition-colors">Como Funciona</a>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <a href={`${APP_URL}`} class="px-5 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">
+            Iniciar Sesion
+          </a>
+          <a href={`${APP_URL}/register`} class="px-5 py-2 bg-skan-500 hover:bg-skan-400 text-white rounded-full text-sm font-semibold transition-all">
+            Crear Cuenta
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="flex-grow">
+      <slot />
+    </main>
+
+    <footer class="border-t border-white/5 bg-skan-900 py-8 text-center text-sm text-slate-500 mt-20">
+      <p>&copy; {new Date().getFullYear()} SkanMed Platform</p>
+      <p class="mt-2 text-xs opacity-50">Plataforma digital para profesionales medicos</p>
+    </footer>
+
+  </body>
+</html>
