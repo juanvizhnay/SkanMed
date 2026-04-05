@@ -77,9 +77,9 @@ const today = new Date().toISOString().split('T')[0];
   <div class="max-w-4xl mx-auto">
 
     <div class="mb-8 flex items-center gap-4">
-      <a href={`/dashboard/pacientes/${patientId}?tab=consultas`} class="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors">
+      <button onclick="history.back()" class="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors">
         <ArrowLeft size={20} />
-      </a>
+      </button>
       <div>
         <h1 class="text-2xl font-display font-bold text-white mb-1">Nueva Consulta</h1>
         <p class="text-slate-400 text-sm">Paciente: {patient.full_name}</p>

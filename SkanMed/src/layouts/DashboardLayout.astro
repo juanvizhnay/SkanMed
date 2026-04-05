@@ -19,6 +19,16 @@ if (!doctor) {
 
 const doctorName = doctor.full_name;
 const specialty = doctor.specialty;
+
+const pathname = Astro.url.pathname;
+const isActive = (path: string) => {
+  if (path === '/dashboard') return pathname === '/dashboard';
+  return pathname.startsWith(path);
+};
+const navClass = (path: string) =>
+  isActive(path)
+    ? 'flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-skan-800 rounded-xl transition-colors'
+    : 'flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors';
 ---
 
 <!doctype html>
@@ -48,19 +58,19 @@ const specialty = doctor.specialty;
       </div>
 
       <nav class="flex-1 p-4 space-y-1">
-        <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-skan-800 rounded-xl transition-colors">
+        <a href="/dashboard" class={navClass('/dashboard')}>
           <LayoutDashboard size={18} />
           Dashboard
         </a>
-        <a href="/dashboard/pacientes" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
+        <a href="/dashboard/pacientes" class={navClass('/dashboard/pacientes')}>
           <Users size={18} />
           Pacientes
         </a>
-        <a href="/dashboard/operaciones" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
+        <a href="/dashboard/operaciones" class={navClass('/dashboard/operaciones')}>
           <Activity size={18} />
           Operaciones
         </a>
-        <a href="/dashboard/configuracion" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
+        <a href="/dashboard/configuracion" class={navClass('/dashboard/configuracion')}>
           <Settings size={18} />
           Configuración
         </a>

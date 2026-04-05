@@ -128,11 +128,8 @@ const recentActivity = [
     </div>
 
     <!-- Landing Page Status -->
-    <div class="bg-gradient-to-br from-skan-800 to-skan-900 border border-white/5 rounded-xl p-6 relative overflow-hidden group">
-      <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-        <Globe size={80} />
-      </div>
-      <div class="flex justify-between items-start mb-4">
+    <div class="bg-skan-900 border border-white/5 rounded-xl p-6 hover:border-white/10 transition-colors">
+      <div class="flex justify-between items-start mb-6">
         <div class="bg-blue-500/10 p-2.5 rounded-lg text-blue-400">
           <Globe size={20} />
         </div>
@@ -141,14 +138,10 @@ const recentActivity = [
           <span class="text-[10px] font-bold text-green-400 uppercase tracking-wider">Online</span>
         </div>
       </div>
-
-      <div class="mb-3">
-        <h3 class="font-bold text-white text-sm mb-1">Portal Publico</h3>
-        <a href={landingUrl} target="_blank" class="text-xs text-skan-400 hover:text-white transition-colors flex items-center gap-1 truncate">
-          {landingUrl} <ExternalLink size={10} />
-        </a>
-      </div>
-
+      <h3 class="text-sm font-bold text-white mb-1">Portal Publico</h3>
+      <a href={landingUrl} target="_blank" class="text-xs text-skan-400 hover:text-white transition-colors flex items-center gap-1 truncate mb-3">
+        {landingUrl} <ExternalLink size={10} />
+      </a>
       <CopyButton client:load text={landingUrl} />
     </div>
 

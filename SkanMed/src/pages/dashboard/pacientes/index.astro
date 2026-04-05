@@ -56,16 +56,16 @@ const statusColors: Record<string, string> = {
         const status = patient.status || 'activo';
 
         return (
-          <a href={`/dashboard/pacientes/${patient.id}`} class="block bg-skan-900 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all group cursor-pointer">
-            <div class="flex items-start justify-between">
+          <div class="w-full bg-skan-900 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all group">
+            <div class="flex items-center justify-between gap-4">
 
-              <div class="flex-1">
+              <a href={`/dashboard/pacientes/${patient.id}`} class="flex-1 min-w-0">
                 <div class="flex items-center gap-3 mb-3">
-                  <div class="w-10 h-10 rounded-full bg-skan-800 border border-white/10 flex items-center justify-center text-sm font-bold text-white">
-                    {patient.full_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                  <div class="w-10 h-10 rounded-full bg-skan-800 border border-white/10 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                    {patient.full_name.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                   </div>
-                  <div>
-                    <div class="flex items-center gap-2">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
                       <h3 class="font-bold text-white text-base group-hover:text-skan-400 transition-colors">{patient.full_name}</h3>
                       <span class={`text-xs font-bold px-2 py-0.5 rounded-full border ${statusColors[status]}`}>
                         {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -101,22 +101,22 @@ const statusColors: Record<string, string> = {
                     </div>
                   )}
                 </div>
-              </div>
+              </a>
 
-              <div class="flex gap-2 ml-4" onclick="event.stopPropagation(); event.preventDefault();">
-                <a href={`/dashboard/pacientes/${patient.id}`} class="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors" onclick="event.stopPropagation();">
+              <div class="flex items-center gap-2 shrink-0">
+                <a href={`/dashboard/pacientes/${patient.id}`} class="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors flex items-center justify-center">
                   <Eye size={16} />
                 </a>
-                <form method="POST" class="contents" onclick="event.stopPropagation();">
+                <form method="POST">
                   <input type="hidden" name="delete_id" value={patient.id} />
-                  <button type="submit" onclick="event.stopPropagation(); return confirm('Eliminar paciente y todo su historial?')" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/10">
+                  <button type="submit" onclick="return confirm('Eliminar paciente y todo su historial?')" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/10 flex items-center justify-center">
                     <Trash2 size={16} />
                   </button>
                 </form>
               </div>
 
             </div>
-          </a>
+          </div>
         );
       })}
     </div>
