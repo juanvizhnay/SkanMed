@@ -11,6 +11,11 @@ export default defineConfig({
   }),
   compressHTML: true,
   vite: {
+    resolve: {
+      alias: {
+        'react-dom/server': 'react-dom/server.edge',
+      },
+    },
     build: {
       cssCodeSplit: true,
       rollupOptions: {
