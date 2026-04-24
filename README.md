@@ -29,7 +29,7 @@ Un solo proyecto Astro (SSR) con todas las rutas bajo el mismo dominio:
 | Base de datos | PostgreSQL en [Neon](https://neon.tech) |
 | ORM | Drizzle ORM |
 | Autenticación | JWT (`jose`) + bcryptjs |
-| Rate limiting / caché | Redis en [Upstash](https://upstash.com) |
+| Rate limiting / caché | PostgreSQL (tablas dedicadas) |
 | Correos | [Resend](https://resend.com) |
 | Almacenamiento de imágenes | Cloudflare R2 |
 | Despliegue | Cloudflare Pages |
@@ -67,10 +67,6 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 # Autenticación
 JWT_SECRET=una_cadena_aleatoria_de_64_caracteres
-
-# Redis (Upstash REST API)
-REDIS_URL=https://your-redis.upstash.io
-REDIS_TOKEN=your_upstash_rest_token
 
 # Resend (correos de verificación y recuperación)
 RESEND_API_KEY=re_xxxxxxxxxxxx
@@ -126,7 +122,7 @@ SkanMed/
 │   │   ├── db.ts                    # Conexión a Neon (connection pool)
 │   │   ├── schema.ts                # Esquema completo de la BD (Drizzle)
 │   │   ├── doctors.ts               # Queries públicas de médicos
-│   │   ├── auth/                    # JWT, sesiones, correos, Redis
+│   │   ├── auth/                    # JWT, sesiones, correos
 │   │   ├── security/                # Protección registro/login (rate limit)
 │   │   └── storage/                 # Cliente Cloudflare R2
 │   └── styles/
@@ -143,7 +139,7 @@ SkanMed/
 ## Flujo de Registro
 
 1. Médico se registra en `/register`
-2. Los datos se guardan temporalmente en Redis
+2. Los datos se guardan temporalmente en PostgreSQL
 3. Resend envía un correo con link de verificación
 4. Al hacer clic en el link, la cuenta se crea en PostgreSQL y se inicia sesión automáticamente
 5. El médico es redirigido directo al `/dashboard`
@@ -155,7 +151,7 @@ SkanMed/
 | Servicio | Uso | Link |
 |---|---|---|
 | [Neon](https://neon.tech) | Base de datos PostgreSQL | Gratis hasta 0.5 GB |
-| [Upstash](https://upstash.com) | Redis para rate limiting | Gratis hasta 10k req/día |
+
 | [Resend](https://resend.com) | Envío de correos | Gratis hasta 3k correos/mes |
 | [Cloudflare R2](https://cloudflare.com) | Almacenamiento de imágenes | ~$0.015/GB/mes, egress gratis |
 | [Cloudflare Pages](https://pages.cloudflare.com) | Hosting y despliegue | Gratis |

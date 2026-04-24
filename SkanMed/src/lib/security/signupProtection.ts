@@ -1,9 +1,8 @@
 import { getRequestIp, buildDeviceId, isRateLimited, hitFixedWindow, inCooldown, setCooldown } from './rateLimit';
 import { getEmailDomain, isDisposableDomain, hasValidMx } from './emailValidation';
 import { db } from '../db';
-import { doctors } from '../schema';
-import { eq } from 'drizzle-orm';
-import * as redis from '../auth/redis';
+import { doctors, rateLimits } from '../schema';
+import { eq, and, gt } from 'drizzle-orm';
 
 interface SignupProtectionOptions {
   perIpPerDayLimit?: number;
@@ -212,12 +211,26 @@ export async function protectSignup(
  */
 export async function recordSignupFailure(ip: string, deviceId: string): Promise<void> {
   try {
-    const failCount = await redis.incr(`signup:fail:${ip}`);
-    await redis.expire(`signup:fail:${ip}`, 60 * 60); // 1 hour
+    const failKey = `signup:fail:${ip}`;
+    const existing = await db.select()
+      .from(rateLimits)
+      .where(and(eq(rateLimits.key, failKey), gt(rateLimits.expires_at, new Date())))
+      .limit(1);
 
-    // Set cooldown if too many failures
+    let failCount = 1;
+    if (existing[0]) {
+      failCount = existing[0].hits + 1;
+      await db.update(rateLimits)
+        .set({ hits: failCount })
+        .where(eq(rateLimits.id, existing[0].id));
+    } else {
+      const expiresAt = new Date(Date.now() + 3600 * 1000);
+      await db.delete(rateLimits).where(eq(rateLimits.key, failKey));
+      await db.insert(rateLimits).values({ key: failKey, hits: 1, expires_at: expiresAt });
+    }
+
     if (failCount >= 5) {
-      await setCooldown(`signup:${ip}`, 15 * 60); // 15 min cooldown
+      await setCooldown(`signup:${ip}`, 15 * 60);
       await setCooldown(`signupDevice:${deviceId}`, 15 * 60);
     }
   } catch (error) {

@@ -160,6 +160,30 @@ export const consultationFiles = pgTable('consultation_files', {
   uploaded_at: timestamp('uploaded_at').defaultNow(),
 });
 
+// ── Registros pendientes (reemplaza Redis para verificación de email) ────
+
+export const pendingRegistrations = pgTable('pending_registrations', {
+  id: serial('id').primaryKey(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  email: varchar('email', { length: 255 }).notNull(),
+  hashed_password: varchar('hashed_password', { length: 255 }).notNull(),
+  full_name: varchar('full_name', { length: 100 }).notNull(),
+  specialty: varchar('specialty', { length: 100 }).notNull(),
+  license_number: varchar('license_number', { length: 50 }),
+  expires_at: timestamp('expires_at').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+});
+
+// ── Rate limiting (reemplaza Redis para protección de login/registro) ────
+
+export const rateLimits = pgTable('rate_limits', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 255 }).notNull(),
+  hits: integer('hits').notNull().default(1),
+  expires_at: timestamp('expires_at').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+});
+
 // ── RELACIONES ───────────────────────────────────────────────────────────
 
 export const doctorsRelations = relations(doctors, ({ one, many }) => ({

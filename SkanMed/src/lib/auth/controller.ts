@@ -1,22 +1,13 @@
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import { db } from '../db';
-import { doctors } from '../schema';
-import { eq } from 'drizzle-orm';
-import * as redis from './redis';
+import { doctors, pendingRegistrations } from '../schema';
+import { eq, gt } from 'drizzle-orm';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || import.meta.env.JWT_SECRET || 'skanmed_default_secret'
 );
-
-interface PendingUser {
-  email: string;
-  hashedPassword: string;
-  full_name: string;
-  specialty: string;
-  license_number?: string;
-}
 
 function generateRandomToken(): string {
   const array = new Uint8Array(32);
@@ -51,13 +42,22 @@ export async function registerUser(data: {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const verificationToken = generateRandomToken();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-  const pendingData: PendingUser = {
-    email, hashedPassword, full_name, specialty,
-    license_number: license_number || undefined
-  };
+  // Clean up any existing pending registration for this email
+  await db.delete(pendingRegistrations).where(eq(pendingRegistrations.email, email));
 
-  await redis.setEx(`verify:${verificationToken}`, 86400, JSON.stringify(pendingData));
+  // Store in PostgreSQL instead of Redis
+  await db.insert(pendingRegistrations).values({
+    token: verificationToken,
+    email,
+    hashed_password: hashedPassword,
+    full_name,
+    specialty,
+    license_number: license_number || null,
+    expires_at: expiresAt,
+  });
+
   await sendVerificationEmail(email, verificationToken);
 
   return {
@@ -69,30 +69,40 @@ export async function registerUser(data: {
 }
 
 export async function verifyEmail(token: string) {
-  const data = await redis.get(`verify:${token}`);
-  if (!data) throw new Error('Token invalido o expirado.');
+  const result = await db.select()
+    .from(pendingRegistrations)
+    .where(eq(pendingRegistrations.token, token))
+    .limit(1);
 
-  const pending: PendingUser = typeof data === 'string' ? JSON.parse(data) : data;
+  const pending = result[0];
+  if (!pending) throw new Error('Token invalido o expirado.');
+
+  if (new Date() > pending.expires_at) {
+    await db.delete(pendingRegistrations).where(eq(pendingRegistrations.id, pending.id));
+    throw new Error('Token expirado. Por favor registrate de nuevo.');
+  }
 
   const existing = await db.select().from(doctors).where(eq(doctors.email, pending.email)).limit(1);
   if (existing.length > 0) {
-    await redis.del(`verify:${token}`);
+    await db.delete(pendingRegistrations).where(eq(pendingRegistrations.id, pending.id));
     throw new Error('Este usuario ya fue verificado.');
   }
 
   const slug = generateSlug(pending.full_name);
 
-  const result = await db.insert(doctors).values({
+  const newUserResult = await db.insert(doctors).values({
     email: pending.email,
-    password_hash: pending.hashedPassword,
+    password_hash: pending.hashed_password,
     full_name: pending.full_name,
     specialty: pending.specialty,
     license_number: pending.license_number || null,
     slug
   }).returning();
 
-  const newUser = result[0];
-  await redis.del(`verify:${token}`);
+  const newUser = newUserResult[0];
+
+  // Clean up pending registration
+  await db.delete(pendingRegistrations).where(eq(pendingRegistrations.id, pending.id));
 
   const jwtToken = await new SignJWT({ id: newUser.id, email: newUser.email })
     .setProtectedHeader({ alg: 'HS256' })
@@ -109,16 +119,6 @@ export async function verifyEmail(token: string) {
 
 export async function loginUser(email: string, password: string) {
   if (!email || !password) throw new Error('Email y contrasena son requeridos.');
-
-  if (redis.default) {
-    const loginKey = `login_attempts:${email}`;
-    const attempts = parseInt(String(await redis.get(loginKey) || '0'), 10);
-    if (attempts >= 15) {
-      throw new Error('Demasiados intentos de inicio de sesion. Intenta de nuevo en 1 hora.');
-    }
-    await redis.incr(loginKey);
-    await redis.expire(loginKey, 3600);
-  }
 
   const userResult = await db.select().from(doctors).where(eq(doctors.email, email)).limit(1);
   const user = userResult[0];

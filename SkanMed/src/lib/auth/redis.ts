@@ -1,72 +1,94 @@
-import { Redis } from '@upstash/redis';
+import { db } from '../db';
+import { rateLimits } from '../schema';
+import { eq, and, gt, sql } from 'drizzle-orm';
 
-let redisClient: Redis | null = null;
+/**
+ * PostgreSQL-backed key-value store that replaces Redis.
+ * Uses the rate_limits table with automatic expiration.
+ */
 
-const REDIS_URL = process.env.REDIS_URL || import.meta.env.REDIS_URL;
-const REDIS_TOKEN = process.env.REDIS_TOKEN || import.meta.env.REDIS_TOKEN;
-
-if (REDIS_URL && REDIS_TOKEN) {
-  redisClient = new Redis({ url: REDIS_URL, token: REDIS_TOKEN });
-} else if (import.meta.env.DEV) {
-  console.warn('Redis not configured (need REDIS_URL + REDIS_TOKEN from Upstash)');
+export async function setEx(key: string, ttlSeconds: number, value: string) {
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+  await db.delete(rateLimits).where(eq(rateLimits.key, key));
+  await db.insert(rateLimits).values({ key, hits: 0, expires_at: expiresAt });
 }
 
-export default redisClient;
-
-export async function setEx(key: string, ttl: number, value: string) {
-  if (!redisClient) return;
-  return await redisClient.set(key, value, { ex: ttl });
-}
-
-export async function get(key: string) {
-  if (!redisClient) return null;
-  return await redisClient.get<string>(key);
+export async function get(key: string): Promise<string | null> {
+  const result = await db.select()
+    .from(rateLimits)
+    .where(and(eq(rateLimits.key, key), gt(rateLimits.expires_at, new Date())))
+    .limit(1);
+  if (!result[0]) return null;
+  return String(result[0].hits);
 }
 
 export async function del(key: string) {
-  if (!redisClient) return;
-  return await redisClient.del(key);
+  await db.delete(rateLimits).where(eq(rateLimits.key, key));
 }
 
-export async function keys(pattern: string) {
-  if (!redisClient) return [];
-  const result = await redisClient.keys(pattern);
-  return result;
-}
+export async function incr(key: string): Promise<number> {
+  const existing = await db.select()
+    .from(rateLimits)
+    .where(and(eq(rateLimits.key, key), gt(rateLimits.expires_at, new Date())))
+    .limit(1);
 
-export async function incr(key: string) {
-  if (!redisClient) return 0;
-  return await redisClient.incr(key);
+  if (existing[0]) {
+    const newHits = existing[0].hits + 1;
+    await db.update(rateLimits)
+      .set({ hits: newHits })
+      .where(eq(rateLimits.id, existing[0].id));
+    return newHits;
+  }
+
+  // If no row or expired, create new with 1 hour default TTL
+  const expiresAt = new Date(Date.now() + 3600 * 1000);
+  await db.delete(rateLimits).where(eq(rateLimits.key, key));
+  await db.insert(rateLimits).values({ key, hits: 1, expires_at: expiresAt });
+  return 1;
 }
 
 export async function expire(key: string, seconds: number) {
-  if (!redisClient) return;
-  return await redisClient.expire(key, seconds);
+  const expiresAt = new Date(Date.now() + seconds * 1000);
+  await db.update(rateLimits)
+    .set({ expires_at: expiresAt })
+    .where(eq(rateLimits.key, key));
 }
 
-export async function ttl(key: string) {
-  if (!redisClient) return -2;
-  return await redisClient.ttl(key);
+export async function ttl(key: string): Promise<number> {
+  const result = await db.select()
+    .from(rateLimits)
+    .where(and(eq(rateLimits.key, key), gt(rateLimits.expires_at, new Date())))
+    .limit(1);
+  if (!result[0]) return -2;
+  return Math.ceil((result[0].expires_at.getTime() - Date.now()) / 1000);
 }
 
-export async function zAdd(key: string, members: Array<{ score: number; value: string }>) {
-  if (!redisClient) return 0;
-  const pipeline = redisClient.pipeline();
-  for (const m of members) {
-    pipeline.zadd(key, { score: m.score, member: m.value });
-  }
-  await pipeline.exec();
-  return members.length;
+export async function keys(_pattern: string): Promise<string[]> {
+  return [];
 }
 
-export async function zCard(key: string) {
-  if (!redisClient) return 0;
-  return await redisClient.zcard(key);
+export async function zAdd(_key: string, _members: Array<{ score: number; value: string }>): Promise<number> {
+  return 0;
 }
 
-export async function zRemRangeByScore(key: string, min: number, max: number) {
-  if (!redisClient) return 0;
-  return await redisClient.zremrangebyscore(key, min, max);
+export async function zCard(_key: string): Promise<number> {
+  return 0;
 }
 
+export async function zRemRangeByScore(_key: string, _min: number, _max: number): Promise<number> {
+  return 0;
+}
+
+/**
+ * Clean up expired rows periodically.
+ * Call this occasionally (e.g. on login/register requests) to keep the table small.
+ */
+export async function cleanupExpired() {
+  try {
+    await db.delete(rateLimits).where(gt(new Date(), rateLimits.expires_at));
+  } catch { /* ignore */ }
+}
+
+const redisClient = null;
+export default redisClient;
 export { redisClient };

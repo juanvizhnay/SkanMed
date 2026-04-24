@@ -1,89 +1,92 @@
-import { getRequestIp, hitFixedWindow } from './rateLimit';
-import * as redis from '../auth/redis';
-
-interface LoginProtectionOptions {
-  perIpPerHourLimit?: number;
-  perEmailPerHourLimit?: number;
-}
+import { db } from '../db';
+import { rateLimits } from '../schema';
+import { eq, and, gt } from 'drizzle-orm';
+import { getRequestIp } from './rateLimit';
 
 interface LoginProtectionResult {
   allowed: boolean;
   reason?: string;
 }
 
-/**
- * Protect login endpoint from brute force attacks
- * Call this at the beginning of your login handler
- */
+async function getOrCreateCounter(key: string, windowSeconds: number): Promise<number> {
+  const existing = await db.select()
+    .from(rateLimits)
+    .where(and(eq(rateLimits.key, key), gt(rateLimits.expires_at, new Date())))
+    .limit(1);
+
+  if (existing[0]) {
+    const newHits = existing[0].hits + 1;
+    await db.update(rateLimits)
+      .set({ hits: newHits })
+      .where(eq(rateLimits.id, existing[0].id));
+    return newHits;
+  }
+
+  const expiresAt = new Date(Date.now() + windowSeconds * 1000);
+  await db.delete(rateLimits).where(eq(rateLimits.key, key));
+  await db.insert(rateLimits).values({ key, hits: 1, expires_at: expiresAt });
+  return 1;
+}
+
 export async function protectLogin(
   request: Request,
   email: string,
-  options: LoginProtectionOptions = {}
+  options: { perIpPerHourLimit?: number; perEmailPerHourLimit?: number } = {}
 ): Promise<LoginProtectionResult> {
-  const {
-    perIpPerHourLimit = 50,
-    perEmailPerHourLimit = 15,
-  } = options;
+  const { perIpPerHourLimit = 50, perEmailPerHourLimit = 15 } = options;
 
   try {
     const ip = getRequestIp(request);
 
-    // 1. Rate limit by IP (50 attempts per hour)
-    const loginIpKey = `login_attempts_ip:${ip}`;
-    const ipAttempts = parseInt(await redis.get(loginIpKey) || '0', 10);
+    // Check IP attempts (don't increment yet, just check)
+    const ipKey = `login_ip:${ip}`;
+    const ipRow = await db.select()
+      .from(rateLimits)
+      .where(and(eq(rateLimits.key, ipKey), gt(rateLimits.expires_at, new Date())))
+      .limit(1);
 
-    if (ipAttempts >= perIpPerHourLimit) {
+    if (ipRow[0] && ipRow[0].hits >= perIpPerHourLimit) {
       return {
         allowed: false,
         reason: 'Demasiados intentos de inicio de sesión desde esta IP. Intenta de nuevo en 1 hora.',
       };
     }
 
-    await redis.incr(loginIpKey);
-    await redis.expire(loginIpKey, 3600); // 1 hour
+    // Check email attempts
+    const emailKey = `login_email:${email}`;
+    const emailRow = await db.select()
+      .from(rateLimits)
+      .where(and(eq(rateLimits.key, emailKey), gt(rateLimits.expires_at, new Date())))
+      .limit(1);
 
-    // 2. Rate limit by email (15 attempts per hour)
-    const loginEmailKey = `login_attempts:${email}`;
-    const emailAttempts = parseInt(await redis.get(loginEmailKey) || '0', 10);
-
-    if (emailAttempts >= perEmailPerHourLimit) {
+    if (emailRow[0] && emailRow[0].hits >= perEmailPerHourLimit) {
       return {
         allowed: false,
         reason: 'Demasiados intentos de inicio de sesión para esta cuenta. Intenta de nuevo en 1 hora o recupera tu contraseña.',
       };
     }
 
-    await redis.incr(loginEmailKey);
-    await redis.expire(loginEmailKey, 3600); // 1 hour
+    // Increment both counters
+    await getOrCreateCounter(ipKey, 3600);
+    await getOrCreateCounter(emailKey, 3600);
 
     return { allowed: true };
   } catch (error) {
     if (import.meta.env.DEV) console.error('Login protection error:', error);
-    // Fail open
     return { allowed: true };
   }
 }
 
-/**
- * Clear login attempts for successful login
- * Call this after a successful authentication
- */
 export async function clearLoginAttempts(request: Request, email: string): Promise<void> {
   try {
     const ip = getRequestIp(request);
-    await redis.del(`login_attempts_ip:${ip}`);
-    await redis.del(`login_attempts:${email}`);
+    await db.delete(rateLimits).where(eq(rateLimits.key, `login_ip:${ip}`));
+    await db.delete(rateLimits).where(eq(rateLimits.key, `login_email:${email}`));
   } catch (error) {
     if (import.meta.env.DEV) console.error('Clear attempts error:', error);
   }
 }
 
-/**
- * Record a failed login attempt
- * Already tracked by protectLogin, but useful for additional tracking
- */
 export async function recordLoginFailure(request: Request, email: string): Promise<void> {
-  // Currently handled by protectLogin itself
-  // This function exists for future enhancements (e.g., logging to DB)
   if (import.meta.env.DEV) console.log(`Failed login: ${email}`);
 }
