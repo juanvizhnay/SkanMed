@@ -127,11 +127,11 @@ export async function loginUser(email: string, password: string) {
 
   console.log(`[LOGIN] User found: ${!!user}, email searched: ${email}`);
 
-  if (!user) throw new Error('Credenciales invalidas.');
+  if (!user) throw new Error('DEBUG: Usuario no encontrado en BD.');
 
   const valid = await bcrypt.compare(password, user.password_hash);
   console.log(`[LOGIN] Password valid: ${valid}`);
-  if (!valid) throw new Error('Credenciales invalidas.');
+  if (!valid) throw new Error('DEBUG: Contrasena incorrecta.');
 
   const token = await new SignJWT({ id: user.id, email: user.email })
     .setProtectedHeader({ alg: 'HS256' })
