@@ -92,12 +92,12 @@ export const Hero = ({ fullName, specialty, description, image, whatsapp, statYe
           <div className="absolute inset-0 border border-dashed border-white/5 rounded-full scale-125 animate-[spin_30s_linear_infinite_reverse]" />
 
           {/* Doctor Image */}
-          <div className="relative w-full h-full max-h-[550px] rounded-3xl overflow-hidden bg-skan-900 border border-white/10 shadow-2xl">
+          <div className="relative w-full h-full max-h-[550px] rounded-3xl overflow-hidden bg-skan-900 border border-white/10 shadow-2xl flex items-center justify-center">
             {image ? (
               <img
                 src={image}
                 alt={fullName}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 loading="eager"
                 decoding="async"
               />
