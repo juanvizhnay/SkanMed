@@ -41,8 +41,7 @@ if (Astro.request.method === "POST") {
       return Astro.redirect('/dashboard');
     }
   } catch (e: any) {
-    console.error('[LOGIN ERROR]', e.message, e.stack);
-    error = `[DEBUG] ${e.message || "Error desconocido"} | Stack: ${(e.stack || "").substring(0, 200)}`;
+    error = e.message || "Error al iniciar sesion";
   }
 }
 ---

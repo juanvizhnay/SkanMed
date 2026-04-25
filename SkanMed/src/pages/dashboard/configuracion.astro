@@ -266,8 +266,9 @@ const tab = Astro.url.searchParams.get('tab') || 'perfil';
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Google Maps URL</label>
-          <input type="url" name="maps_url" value={contact?.google_maps_url || ''} placeholder="https://maps.google.com/..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Google Maps Embed URL</label>
+          <input type="url" name="maps_url" value={contact?.google_maps_url || ''} placeholder="https://www.google.com/maps/embed?pb=..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          <p class="text-xs text-slate-500">Google Maps → Compartir → Insertar mapa → copia solo la URL del src</p>
         </div>
 
         <div class="space-y-1.5">

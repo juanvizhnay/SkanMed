@@ -10,6 +10,8 @@ const doctor = await getDoctorBySlug(slug);
 if (!doctor) return new Response('Doctor not found', { status: 404 });
 
 const operationsList = await getPublicOperations(doctor.id);
+
+Astro.response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
 ---
 
 <DoctorLayout title={`Casos Clinicos | Dr. ${doctor.full_name}`} doctorSlug={slug} doctorName={doctor.full_name}>

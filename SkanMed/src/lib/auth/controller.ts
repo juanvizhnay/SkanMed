@@ -120,18 +120,13 @@ export async function verifyEmail(token: string) {
 export async function loginUser(email: string, password: string) {
   if (!email || !password) throw new Error('Email y contrasena son requeridos.');
 
-  console.log(`[LOGIN] Attempting login for: ${email}`);
-
   const userResult = await db.select().from(doctors).where(eq(doctors.email, email)).limit(1);
   const user = userResult[0];
 
-  console.log(`[LOGIN] User found: ${!!user}, email searched: ${email}`);
-
-  if (!user) throw new Error('DEBUG: Usuario no encontrado en BD.');
+  if (!user) throw new Error('Credenciales invalidas.');
 
   const valid = await bcrypt.compare(password, user.password_hash);
-  console.log(`[LOGIN] Password valid: ${valid}`);
-  if (!valid) throw new Error('DEBUG: Contrasena incorrecta.');
+  if (!valid) throw new Error('Credenciales invalidas.');
 
   const token = await new SignJWT({ id: user.id, email: user.email })
     .setProtectedHeader({ alg: 'HS256' })

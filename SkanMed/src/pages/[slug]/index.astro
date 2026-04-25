@@ -11,6 +11,8 @@ const doctor = await getDoctorBySlug(slug);
 if (!doctor) return new Response('Doctor not found', { status: 404 });
 
 const { profile, contact } = await getDoctorWithDetails(doctor.id);
+
+Astro.response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
 ---
 
 <DoctorLayout title={`Dr. ${doctor.full_name} | SkanMed`} doctorSlug={slug} doctorName={doctor.full_name}>
