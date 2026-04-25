@@ -41,6 +41,7 @@ if (Astro.request.method === "POST") {
         .where(eq(doctors.id, doctor.id));
 
       const hero_title = data.get("hero_title")?.toString();
+      const hero_description = data.get("hero_description")?.toString();
       const about_bio = data.get("about_bio")?.toString();
       const profile_picture_url = data.get("profile_picture_url")?.toString();
       const stat_years_exp = data.get("stat_years_exp")?.toString() || null;
@@ -48,7 +49,7 @@ if (Astro.request.method === "POST") {
       const stat_success = data.get("stat_success")?.toString() || null;
 
       const profileData = {
-        hero_title, about_bio,
+        hero_title, hero_description, about_bio,
         profile_picture_url: profile_picture_url || null,
         stat_years_exp, stat_patients, stat_success,
       };
@@ -71,8 +72,14 @@ if (Astro.request.method === "POST") {
     } else if (action === "update_contact") {
       const whatsapp = data.get("whatsapp")?.toString();
       const address = data.get("address")?.toString();
-      const maps_url = data.get("maps_url")?.toString();
+      let maps_url = data.get("maps_url")?.toString()?.trim() || '';
       const email_contact = data.get("email_contact")?.toString();
+
+      // Extract URL from iframe if user pasted the full embed code
+      if (maps_url.includes('<iframe')) {
+        const srcMatch = maps_url.match(/src="([^"]*google\.com\/maps[^"]*)"/);
+        if (srcMatch) maps_url = srcMatch[1];
+      }
 
       if (contact) {
         await db.update(contactInfo)
@@ -213,6 +220,11 @@ const tab = Astro.url.searchParams.get('tab') || 'perfil';
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Título del Hero (Landing Page)</label>
           <input type="text" name="hero_title" value={profile?.hero_title || ''} placeholder="Ej: Neurocirujano con 15 años de experiencia" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Descripción del Hero (Landing Page)</label>
+          <textarea name="hero_description" rows="3" placeholder="Breve descripción que aparece debajo del nombre en la landing page..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{profile?.hero_description || ''}</textarea>
         </div>
 
         <div class="space-y-1.5">
@@ -377,8 +389,8 @@ const tab = Astro.url.searchParams.get('tab') || 'perfil';
   const contactForm = document.getElementById('contact-form');
   contactForm?.addEventListener('submit', (e) => {
     const whatsapp = contactForm.querySelector('[name="whatsapp"]').value.trim();
-    const email = contactForm.querySelector('[name="email"]').value.trim();
-    const googleMaps = contactForm.querySelector('[name="google_maps_url"]').value.trim();
+    const email = contactForm.querySelector('[name="email_contact"]').value.trim();
+    const googleMaps = contactForm.querySelector('[name="maps_url"]').value.trim();
 
     if (whatsapp && whatsapp.length < 7) {
       e.preventDefault();
