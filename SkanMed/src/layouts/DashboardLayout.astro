@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import { ViewTransitions } from 'astro:transitions';
-import { LayoutDashboard, Users, Activity, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Activity, Settings, LogOut, GraduationCap } from 'lucide-react';
 import { getCurrentDoctor } from '../lib/auth/session';
 
 interface Props {
@@ -76,6 +76,10 @@ const navClass = (path: string) =>
         <a href="/dashboard/operaciones" class={navClass('/dashboard/operaciones')} onclick="closeSidebar()">
           <Activity size={18} />
           Operaciones
+        </a>
+        <a href="/dashboard/trayectoria" class={navClass('/dashboard/trayectoria')} onclick="closeSidebar()">
+          <GraduationCap size={18} />
+          Trayectoria
         </a>
         <a href="/dashboard/configuracion" class={navClass('/dashboard/configuracion')} onclick="closeSidebar()">
           <Settings size={18} />
