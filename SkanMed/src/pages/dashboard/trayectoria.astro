@@ -26,26 +26,20 @@ if (Astro.request.method === 'POST') {
     if (action === 'create' || action === 'update') {
       const title = data.get('title')?.toString()?.trim();
       const institution = data.get('institution')?.toString()?.trim();
+      const description = data.get('description')?.toString()?.trim() || null;
       const type = data.get('type')?.toString() || 'education';
-      const start_year = data.get('start_year')?.toString()?.trim() || null;
-      const end_year = data.get('end_year')?.toString()?.trim() || null;
+      const start_date = data.get('start_date')?.toString()?.trim() || null;
+      const end_date = data.get('end_date')?.toString()?.trim() || null;
 
       if (!title || !institution) throw new Error('Título e institución son obligatorios.');
 
+      const values = { title, institution, description, type, start_date, end_date };
+
       if (action === 'create') {
-        await db.insert(academicHistory).values({
-          doctor_id: doctor.id,
-          title,
-          institution,
-          type,
-          start_year,
-          end_year,
-        });
+        await db.insert(academicHistory).values({ doctor_id: doctor.id, ...values });
       } else {
         const id = Number(data.get('id'));
-        await db.update(academicHistory)
-          .set({ title, institution, type, start_year, end_year })
-          .where(eq(academicHistory.id, id));
+        await db.update(academicHistory).set(values).where(eq(academicHistory.id, id));
       }
 
       return Astro.redirect('/dashboard/trayectoria?success=Guardado+correctamente');
@@ -57,7 +51,7 @@ if (Astro.request.method === 'POST') {
 
 const items = await db.select().from(academicHistory)
   .where(eq(academicHistory.doctor_id, doctor.id))
-  .orderBy(asc(academicHistory.start_year));
+  .orderBy(asc(academicHistory.start_date));
 
 const successMsg = Astro.url.searchParams.get('success');
 
@@ -69,6 +63,13 @@ const typeLabels: Record<string, string> = {
   course: 'Curso / Diplomado',
   experience: 'Experiencia Laboral',
 };
+
+function formatDate(d: string | null) {
+  if (!d) return null;
+  const [y, m] = d.split('-');
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return m ? `${months[parseInt(m)-1]} ${y}` : y;
+}
 ---
 
 <DashboardLayout title="Trayectoria Profesional">
@@ -112,6 +113,11 @@ const typeLabels: Record<string, string> = {
         </div>
       </div>
 
+      <div class="space-y-1.5">
+        <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Descripción</label>
+        <textarea name="description" rows="2" placeholder="Breve descripción de esta formación o experiencia..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors"></textarea>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Tipo</label>
@@ -125,12 +131,13 @@ const typeLabels: Record<string, string> = {
           </select>
         </div>
         <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Año Inicio</label>
-          <input type="text" name="start_year" placeholder="Ej: 2010" maxlength="4" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fecha Inicio</label>
+          <input type="month" name="start_date" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
         </div>
         <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Año Fin</label>
-          <input type="text" name="end_year" placeholder="Vacío = Presente" maxlength="4" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fecha Fin</label>
+          <input type="month" name="end_date" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          <p class="text-[10px] text-slate-500">Vacío = Presente</p>
         </div>
       </div>
 
@@ -151,52 +158,58 @@ const typeLabels: Record<string, string> = {
   ) : (
     <div class="space-y-4 max-w-2xl">
       {items.map((item) => (
-        <div class="bg-skan-900 border border-white/5 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 group hover:border-white/10 transition-colors" id={`item-${item.id}`}>
-          <div class="p-2.5 bg-skan-950 border border-white/10 rounded-xl text-skan-400 shrink-0">
-            <GraduationCap size={22} />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-skan-500/10 text-skan-400 border border-skan-500/20">
-                {typeLabels[item.type] || item.type}
-              </span>
-              <span class="text-xs text-slate-500">
-                {item.start_year || '?'} - {item.end_year || 'Presente'}
-              </span>
+        <div class="bg-skan-900 border border-white/5 rounded-xl p-5 group hover:border-white/10 transition-colors" id={`item-${item.id}`}>
+          <div class="flex items-start gap-4">
+            <div class="p-2.5 bg-skan-950 border border-white/10 rounded-xl text-skan-400 shrink-0 mt-0.5">
+              <GraduationCap size={22} />
             </div>
-            <h3 class="font-bold text-white text-sm truncate">{item.title}</h3>
-            <p class="text-slate-400 text-xs truncate">{item.institution}</p>
-          </div>
-          <div class="flex gap-2 shrink-0">
-            <button onclick={`toggleEdit(${item.id})`} class="p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors">
-              <Pencil size={14} />
-            </button>
-            <form method="POST" class="contents">
-              <input type="hidden" name="action" value="delete" />
-              <input type="hidden" name="id" value={item.id} />
-              <button type="submit" onclick="return confirm('¿Eliminar este registro?')" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/10">
-                <Trash2 size={14} />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-skan-500/10 text-skan-400 border border-skan-500/20">
+                  {typeLabels[item.type] || item.type}
+                </span>
+                <span class="text-xs text-slate-500">
+                  {formatDate(item.start_date) || '?'} - {formatDate(item.end_date) || 'Presente'}
+                </span>
+              </div>
+              <h3 class="font-bold text-white text-sm">{item.title}</h3>
+              <p class="text-slate-400 text-xs">{item.institution}</p>
+              {item.description && (
+                <p class="text-slate-500 text-xs mt-1.5 leading-relaxed">{item.description}</p>
+              )}
+            </div>
+            <div class="flex gap-2 shrink-0">
+              <button onclick={`toggleEdit(${item.id})`} class="p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors">
+                <Pencil size={14} />
               </button>
-            </form>
+              <form method="POST" class="contents">
+                <input type="hidden" name="action" value="delete" />
+                <input type="hidden" name="id" value={item.id} />
+                <button type="submit" onclick="return confirm('¿Eliminar este registro?')" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/10">
+                  <Trash2 size={14} />
+                </button>
+              </form>
+            </div>
           </div>
 
-          <!-- Inline edit form (hidden by default) -->
-          <div id={`edit-${item.id}`} class="hidden w-full mt-4 border-t border-white/5 pt-4">
+          <!-- Inline edit form -->
+          <div id={`edit-${item.id}`} class="hidden mt-4 border-t border-white/5 pt-4">
             <form method="POST" class="space-y-3">
               <input type="hidden" name="action" value="update" />
               <input type="hidden" name="id" value={item.id} />
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input type="text" name="title" value={item.title} required class="w-full bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
-                <input type="text" name="institution" value={item.institution} required class="w-full bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+                <input type="text" name="title" value={item.title} required placeholder="Título / Cargo" class="w-full bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+                <input type="text" name="institution" value={item.institution} required placeholder="Institución" class="w-full bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
               </div>
+              <textarea name="description" rows="2" placeholder="Descripción..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none">{item.description || ''}</textarea>
               <div class="grid grid-cols-3 gap-3">
                 <select name="type" class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none">
                   {Object.entries(typeLabels).map(([val, label]) => (
                     <option value={val} selected={item.type === val}>{label}</option>
                   ))}
                 </select>
-                <input type="text" name="start_year" value={item.start_year || ''} placeholder="Inicio" maxlength="4" class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
-                <input type="text" name="end_year" value={item.end_year || ''} placeholder="Fin" maxlength="4" class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+                <input type="month" name="start_date" value={item.start_date || ''} class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+                <input type="month" name="end_date" value={item.end_date || ''} class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
               </div>
               <div class="flex justify-end gap-2">
                 <button type="button" onclick={`toggleEdit(${item.id})`} class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancelar</button>

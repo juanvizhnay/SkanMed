@@ -59,8 +59,9 @@ export const academicHistory = pgTable('academic_history', {
   doctor_id: integer('doctor_id').notNull().references(() => doctors.id),
   institution: varchar('institution', { length: 200 }).notNull(),
   title: varchar('title', { length: 200 }).notNull(),
-  start_year: varchar('start_year', { length: 4 }),
-  end_year: varchar('end_year', { length: 4 }),
+  description: text('description'),
+  start_date: varchar('start_date', { length: 7 }),
+  end_date: varchar('end_date', { length: 7 }),
   type: varchar('type', { length: 20 }).notNull(),
 });
 
