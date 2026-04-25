@@ -9,6 +9,16 @@ import { eq, asc } from 'drizzle-orm';
 const doctor = await getCurrentDoctor(Astro.cookies);
 if (!doctor) return Astro.redirect('/login');
 
+// "2018" → "2018", "03/2018" → "2018-03", "2018-03" → "2018-03"
+function normalizeDate(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  if (/^\d{4}$/.test(raw)) return raw;
+  const slashMatch = raw.match(/^(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) return `${slashMatch[2]}-${slashMatch[1].padStart(2, '0')}`;
+  if (/^\d{4}-\d{2}$/.test(raw)) return raw;
+  return raw;
+}
+
 let success = '';
 let error = '';
 
@@ -28,8 +38,8 @@ if (Astro.request.method === 'POST') {
       const institution = data.get('institution')?.toString()?.trim();
       const description = data.get('description')?.toString()?.trim() || null;
       const type = data.get('type')?.toString() || 'education';
-      const start_date = data.get('start_date')?.toString()?.trim() || null;
-      const end_date = data.get('end_date')?.toString()?.trim() || null;
+      const start_date = normalizeDate(data.get('start_date')?.toString()?.trim());
+      const end_date = normalizeDate(data.get('end_date')?.toString()?.trim());
 
       if (!title || !institution) throw new Error('Título e institución son obligatorios.');
 
@@ -66,6 +76,7 @@ const typeLabels: Record<string, string> = {
 
 function formatDate(d: string | null) {
   if (!d) return null;
+  if (/^\d{4}$/.test(d)) return d;
   const [y, m] = d.split('-');
   const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   return m ? `${months[parseInt(m)-1]} ${y}` : y;
@@ -131,13 +142,12 @@ function formatDate(d: string | null) {
           </select>
         </div>
         <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fecha Inicio</label>
-          <input type="month" name="start_date" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Inicio</label>
+          <input type="text" name="start_date" placeholder="Ej: 2018 o 03/2018" maxlength="7" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
         </div>
         <div class="space-y-1.5">
-          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fecha Fin</label>
-          <input type="month" name="end_date" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
-          <p class="text-[10px] text-slate-500">Vacío = Presente</p>
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fin</label>
+          <input type="text" name="end_date" placeholder="Vacío = Presente" maxlength="7" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
         </div>
       </div>
 
@@ -208,8 +218,8 @@ function formatDate(d: string | null) {
                     <option value={val} selected={item.type === val}>{label}</option>
                   ))}
                 </select>
-                <input type="month" name="start_date" value={item.start_date || ''} class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
-                <input type="month" name="end_date" value={item.end_date || ''} class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+                <input type="text" name="start_date" value={item.start_date || ''} placeholder="Ej: 2018 o 03/2018" maxlength="7" class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
+                <input type="text" name="end_date" value={item.end_date || ''} placeholder="Vacío = Presente" maxlength="7" class="bg-skan-950 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-skan-500 focus:outline-none" />
               </div>
               <div class="flex justify-end gap-2">
                 <button type="button" onclick={`toggleEdit(${item.id})`} class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancelar</button>

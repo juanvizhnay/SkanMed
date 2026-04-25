@@ -31,6 +31,7 @@ Astro.response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate
           ) : history.map((item) => {
             const fmt = (d: string | null) => {
               if (!d) return null;
+              if (/^\d{4}$/.test(d)) return d;
               const [y, m] = d.split('-');
               const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
               return m ? `${months[parseInt(m)-1]} ${y}` : y;
