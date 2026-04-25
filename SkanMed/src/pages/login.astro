@@ -42,7 +42,7 @@ if (Astro.request.method === "POST") {
     }
   } catch (e: any) {
     console.error('[LOGIN ERROR]', e.message, e.stack);
-    error = e.message || "Error al iniciar sesión";
+    error = `[DEBUG] ${e.message || "Error desconocido"} | Stack: ${(e.stack || "").substring(0, 200)}`;
   }
 }
 ---
