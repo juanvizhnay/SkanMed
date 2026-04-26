@@ -48,9 +48,12 @@ if (Astro.request.method === "POST") {
       const stat_patients = data.get("stat_patients")?.toString() || null;
       const stat_success = data.get("stat_success")?.toString() || null;
 
+      const certification_label = data.get("certification_label")?.toString() || null;
+
       const profileData = {
         hero_title, hero_description, about_bio,
         profile_picture_url: profile_picture_url || null,
+        certification_label,
         stat_years_exp, stat_patients, stat_success,
       };
 
@@ -230,6 +233,12 @@ const tab = Astro.url.searchParams.get('tab') || 'perfil';
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Bio / Sobre Mi</label>
           <textarea name="about_bio" rows="4" placeholder="Cuente sobre su experiencia, logros, enfoque medico..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">{profile?.about_bio || ''}</textarea>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Certificación / Institución Principal</label>
+          <input type="text" name="certification_label" value={profile?.certification_label || ''} placeholder="Ej: Certificado por el Colegio de Médicos del Azuay" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+          <p class="text-[10px] text-slate-500">Aparece sobre la foto de perfil en la landing page</p>
         </div>
 
         <div class="border-t border-white/5 pt-6">

@@ -24,6 +24,7 @@ export const doctorProfiles = pgTable('doctor_profiles', {
   about_bio: text('about_bio'),
   profile_picture_url: varchar('profile_picture_url', { length: 500 }),
   primary_color: varchar('primary_color', { length: 20 }).default('#0ea5e9'),
+  certification_label: varchar('certification_label', { length: 200 }),
   stat_years_exp: varchar('stat_years_exp', { length: 20 }),
   stat_patients: varchar('stat_patients', { length: 20 }),
   stat_success: varchar('stat_success', { length: 20 }),

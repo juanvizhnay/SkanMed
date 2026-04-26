@@ -8,12 +8,13 @@ interface HeroProps {
   description?: string | null;
   image?: string | null;
   whatsapp?: string | null;
+  certificationLabel?: string | null;
   statYearsExp?: string | null;
   statPatients?: string | null;
   statSuccess?: string | null;
 }
 
-export const Hero = ({ fullName, specialty, description, image, whatsapp, statYearsExp, statPatients, statSuccess }: HeroProps) => {
+export const Hero = ({ fullName, specialty, description, image, whatsapp, certificationLabel, statYearsExp, statPatients, statSuccess }: HeroProps) => {
   return (
     <section className="relative pt-20 pb-32 overflow-hidden">
 
@@ -114,7 +115,7 @@ export const Hero = ({ fullName, specialty, description, image, whatsapp, statYe
                  <div className="p-2 bg-green-500/20 rounded-full text-green-400">
                    <CheckCircle2 size={20} />
                  </div>
-                 <p className="text-sm font-medium text-slate-300">Certificado por el Colegio Médico</p>
+                 <p className="text-sm font-medium text-slate-300">{certificationLabel || 'Profesional Médico Certificado'}</p>
                </div>
             </div>
           </div>
