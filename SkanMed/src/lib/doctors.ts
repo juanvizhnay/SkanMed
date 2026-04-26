@@ -40,5 +40,5 @@ export async function getPublicOperations(doctorId: number) {
 export async function getAcademicHistory(doctorId: number) {
   return db.select().from(academicHistory)
     .where(eq(academicHistory.doctor_id, doctorId))
-    .orderBy(desc(academicHistory.start_date));
+    .orderBy(academicHistory.start_date);
 }

@@ -61,7 +61,7 @@ if (Astro.request.method === 'POST') {
 
 const items = await db.select().from(academicHistory)
   .where(eq(academicHistory.doctor_id, doctor.id))
-  .orderBy(desc(academicHistory.start_date));
+  .orderBy(academicHistory.start_date);
 
 const successMsg = Astro.url.searchParams.get('success');
 
