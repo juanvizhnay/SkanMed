@@ -4,7 +4,7 @@ import { Plus, Trash2, GraduationCap, Pencil } from 'lucide-react';
 import { getCurrentDoctor } from '../../lib/auth/session';
 import { db } from '../../lib/db';
 import { academicHistory } from '../../lib/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 const doctor = await getCurrentDoctor(Astro.cookies);
 if (!doctor) return Astro.redirect('/login');
@@ -61,7 +61,7 @@ if (Astro.request.method === 'POST') {
 
 const items = await db.select().from(academicHistory)
   .where(eq(academicHistory.doctor_id, doctor.id))
-  .orderBy(asc(academicHistory.start_date));
+  .orderBy(desc(academicHistory.start_date));
 
 const successMsg = Astro.url.searchParams.get('success');
 

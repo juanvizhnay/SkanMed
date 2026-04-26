@@ -1,6 +1,6 @@
 import { db } from './db';
 import { doctors, doctorProfiles, contactInfo, operations, academicHistory } from './schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 
 /**
  * Get doctor by slug with optional related data
@@ -38,5 +38,7 @@ export async function getPublicOperations(doctorId: number) {
  * Get academic history for a doctor
  */
 export async function getAcademicHistory(doctorId: number) {
-  return db.select().from(academicHistory).where(eq(academicHistory.doctor_id, doctorId));
+  return db.select().from(academicHistory)
+    .where(eq(academicHistory.doctor_id, doctorId))
+    .orderBy(desc(academicHistory.start_date));
 }
