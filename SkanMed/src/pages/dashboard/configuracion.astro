@@ -78,6 +78,9 @@ if (Astro.request.method === "POST") {
       let maps_url = data.get("maps_url")?.toString()?.trim() || '';
       const email_contact = data.get("email_contact")?.toString();
       const linkedin_url = data.get("linkedin_url")?.toString()?.trim() || null;
+      const schedule_weekdays = data.get("schedule_weekdays")?.toString()?.trim() || null;
+      const schedule_saturday = data.get("schedule_saturday")?.toString()?.trim() || null;
+      const schedule_sunday = data.get("schedule_sunday")?.toString()?.trim() || null;
 
       // Extract URL from iframe if user pasted the full embed code
       if (maps_url.includes('<iframe')) {
@@ -93,6 +96,7 @@ if (Astro.request.method === "POST") {
             google_maps_url: maps_url || null,
             email_contact: email_contact || null,
             linkedin_url,
+            schedule_weekdays, schedule_saturday, schedule_sunday,
           })
           .where(eq(contactInfo.id, contact.id));
       } else {
@@ -103,6 +107,7 @@ if (Astro.request.method === "POST") {
           google_maps_url: maps_url || null,
           email_contact: email_contact || null,
           linkedin_url,
+          schedule_weekdays, schedule_saturday, schedule_sunday,
         });
       }
 
@@ -303,6 +308,26 @@ const tab = Astro.url.searchParams.get('tab') || 'perfil';
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">LinkedIn</label>
           <input type="url" name="linkedin_url" value={contact?.linkedin_url || ''} placeholder="https://www.linkedin.com/in/..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+
+        <div class="border-t border-white/5 pt-6">
+          <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Horarios de Atención</h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Lunes a Viernes</label>
+              <input type="text" name="schedule_weekdays" value={contact?.schedule_weekdays || ''} placeholder="Ej: 9:00 AM - 7:00 PM" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Sábados</label>
+              <input type="text" name="schedule_saturday" value={contact?.schedule_saturday || ''} placeholder="Ej: 9:00 AM - 1:00 PM" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+              <p class="text-[10px] text-slate-500">Vacío = no se muestra</p>
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Domingos</label>
+              <input type="text" name="schedule_sunday" value={contact?.schedule_sunday || ''} placeholder="Ej: Cerrado" class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+              <p class="text-[10px] text-slate-500">Vacío = no se muestra</p>
+            </div>
+          </div>
         </div>
       </div>
 

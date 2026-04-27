@@ -19,6 +19,8 @@ function cleanPhone(num: string | null | undefined): string {
 
 export const Hero = ({ fullName, specialty, description, image, whatsapp, certificationLabel, statYearsExp }: HeroProps) => {
   const waNumber = cleanPhone(whatsapp);
+  const waMessage = encodeURIComponent('Buenos días doctor, me gustaría agendar una cita.');
+  const waUrl = waNumber ? `https://wa.me/${waNumber}?text=${waMessage}` : '';
 
   return (
     <section className="relative pt-20 pb-32 overflow-hidden">
@@ -54,9 +56,9 @@ export const Hero = ({ fullName, specialty, description, image, whatsapp, certif
           </p>
 
           <div className="flex flex-wrap gap-4 pt-4">
-            {waNumber && (
+            {waUrl && (
               <a
-                href={`https://wa.me/${waNumber}`}
+                href={waUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-8 py-4 bg-gradient-to-r from-skan-500 to-blue-600 hover:from-skan-400 hover:to-blue-500 text-white rounded-xl font-bold shadow-lg shadow-skan-500/20 transition-all flex items-center gap-2"

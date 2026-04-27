@@ -7,6 +7,9 @@ interface ContactProps {
   email?: string | null;
   mapUrl?: string | null;
   linkedin?: string | null;
+  scheduleWeekdays?: string | null;
+  scheduleSaturday?: string | null;
+  scheduleSunday?: string | null;
 }
 
 function cleanPhone(num: string | null | undefined): string {
@@ -14,8 +17,10 @@ function cleanPhone(num: string | null | undefined): string {
   return num.replace(/[^0-9]/g, '');
 }
 
-export const Contact = ({ address, phone, email, mapUrl, linkedin }: ContactProps) => {
+export const Contact = ({ address, phone, email, mapUrl, linkedin, scheduleWeekdays, scheduleSaturday, scheduleSunday }: ContactProps) => {
   const waNumber = cleanPhone(phone);
+  const waMessage = encodeURIComponent('Buenos días doctor, me gustaría agendar una cita.');
+  const waUrl = waNumber ? `https://wa.me/${waNumber}?text=${waMessage}` : '';
 
   return (
     <section className="py-24 bg-skan-900 relative" id="contacto">
@@ -38,8 +43,8 @@ export const Contact = ({ address, phone, email, mapUrl, linkedin }: ContactProp
                 </div>
               </div>
 
-              {phone && (
-                <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer" className="flex gap-6 group cursor-pointer">
+              {phone && waUrl && (
+                <a href={waUrl} target="_blank" rel="noopener noreferrer" className="flex gap-6 group cursor-pointer">
                   <div className="w-12 h-12 bg-skan-950 border border-white/10 rounded-xl flex items-center justify-center shrink-0 group-hover:border-green-500/50 transition-colors">
                     <Phone className="text-skan-400 group-hover:text-green-400 transition-colors" size={24} />
                   </div>
@@ -94,8 +99,9 @@ export const Contact = ({ address, phone, email, mapUrl, linkedin }: ContactProp
                 <Clock className="text-skan-500 mt-1" size={20} />
                 <div>
                   <h5 className="font-bold text-white text-sm">Horarios de Atención</h5>
-                  <p className="text-slate-400 text-xs mt-1">Lunes a Viernes: 9:00 AM - 7:00 PM</p>
-                  <p className="text-slate-400 text-xs">Sábados: 9:00 AM - 1:00 PM</p>
+                  <p className="text-slate-400 text-xs mt-1">Lunes a Viernes: {scheduleWeekdays || 'No especificado'}</p>
+                  {scheduleSaturday && <p className="text-slate-400 text-xs">Sábados: {scheduleSaturday}</p>}
+                  {scheduleSunday && <p className="text-slate-400 text-xs">Domingos: {scheduleSunday}</p>}
                 </div>
               </div>
             </div>

@@ -39,6 +39,9 @@ export const contactInfo = pgTable('contact_info', {
   email_contact: varchar('email_contact', { length: 255 }),
   instagram_url: varchar('instagram_url', { length: 255 }),
   linkedin_url: varchar('linkedin_url', { length: 255 }),
+  schedule_weekdays: varchar('schedule_weekdays', { length: 100 }),
+  schedule_saturday: varchar('schedule_saturday', { length: 100 }),
+  schedule_sunday: varchar('schedule_sunday', { length: 100 }),
 });
 
 export const operations = pgTable('operations', {
