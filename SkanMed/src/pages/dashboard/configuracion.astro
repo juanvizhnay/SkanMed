@@ -219,7 +219,11 @@ const tab = Astro.url.searchParams.get('tab') || 'perfil';
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-1.5">
             <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Especialidad</label>
-            <input type="text" name="specialty" required value={updatedDoctor?.specialty || doctor.specialty} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+            <select name="specialty" required class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors">
+              {["Anestesiología","Cardiología","Cirugía General","Cirugía Plástica","Dermatología","Endocrinología","Gastroenterología","Geriatría","Ginecología","Hematología","Medicina Familiar","Medicina Interna","Nefrología","Neumología","Neurocirugía","Neurología","Nutriología","Oftalmología","Oncología","Ortopedia","Otorrinolaringología","Pediatría","Psiquiatría","Radiología","Reumatología","Traumatología","Urología","Otra"].map(s => (
+                <option value={s} selected={(updatedDoctor?.specialty || doctor.specialty) === s}>{s}</option>
+              ))}
+            </select>
           </div>
 
           <div class="space-y-1.5">

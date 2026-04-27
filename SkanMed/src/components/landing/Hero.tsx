@@ -5,6 +5,7 @@ import { Activity, Phone, MapPin, CheckCircle2 } from 'lucide-react';
 interface HeroProps {
   fullName: string;
   specialty: string;
+  heroTitle?: string | null;
   description?: string | null;
   image?: string | null;
   whatsapp?: string | null;
@@ -17,7 +18,7 @@ function cleanPhone(num: string | null | undefined): string {
   return num.replace(/[^0-9]/g, '');
 }
 
-export const Hero = ({ fullName, specialty, description, image, whatsapp, certificationLabel, statYearsExp }: HeroProps) => {
+export const Hero = ({ fullName, specialty, heroTitle, description, image, whatsapp, certificationLabel, statYearsExp }: HeroProps) => {
   const waNumber = cleanPhone(whatsapp);
   const waMessage = encodeURIComponent('Buenos días doctor, me gustaría agendar una cita.');
   const waUrl = waNumber ? `https://wa.me/${waNumber}?text=${waMessage}` : '';
@@ -39,7 +40,7 @@ export const Hero = ({ fullName, specialty, description, image, whatsapp, certif
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-skan-500/10 border border-skan-500/20 rounded-full text-skan-400 text-xs font-bold uppercase tracking-wider">
             <span className="w-2 h-2 bg-skan-500 rounded-full animate-pulse" />
-            Neurocirugía de Vanguardia
+            {heroTitle || `${specialty} de Vanguardia`}
           </div>
 
           <div>
