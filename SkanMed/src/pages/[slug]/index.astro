@@ -26,8 +26,6 @@ Astro.response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate
     whatsapp={contact?.whatsapp_number}
     certificationLabel={profile?.certification_label}
     statYearsExp={profile?.stat_years_exp}
-    statPatients={profile?.stat_patients}
-    statSuccess={profile?.stat_success}
   />
 
   <div class="container mx-auto px-6 py-12 text-center">
@@ -45,6 +43,7 @@ Astro.response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate
     phone={contact?.whatsapp_number}
     email={contact?.email_contact}
     mapUrl={contact?.google_maps_url}
+    linkedin={contact?.linkedin_url}
   />
 
 </DoctorLayout>

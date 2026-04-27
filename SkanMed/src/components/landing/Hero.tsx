@@ -10,11 +10,16 @@ interface HeroProps {
   whatsapp?: string | null;
   certificationLabel?: string | null;
   statYearsExp?: string | null;
-  statPatients?: string | null;
-  statSuccess?: string | null;
 }
 
-export const Hero = ({ fullName, specialty, description, image, whatsapp, certificationLabel, statYearsExp, statPatients, statSuccess }: HeroProps) => {
+function cleanPhone(num: string | null | undefined): string {
+  if (!num) return '';
+  return num.replace(/[^0-9]/g, '');
+}
+
+export const Hero = ({ fullName, specialty, description, image, whatsapp, certificationLabel, statYearsExp }: HeroProps) => {
+  const waNumber = cleanPhone(whatsapp);
+
   return (
     <section className="relative pt-20 pb-32 overflow-hidden">
 
@@ -49,9 +54,9 @@ export const Hero = ({ fullName, specialty, description, image, whatsapp, certif
           </p>
 
           <div className="flex flex-wrap gap-4 pt-4">
-            {whatsapp && (
+            {waNumber && (
               <a
-                href={`https://wa.me/${whatsapp}`}
+                href={`https://wa.me/${waNumber}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-8 py-4 bg-gradient-to-r from-skan-500 to-blue-600 hover:from-skan-400 hover:to-blue-500 text-white rounded-xl font-bold shadow-lg shadow-skan-500/20 transition-all flex items-center gap-2"
@@ -66,20 +71,12 @@ export const Hero = ({ fullName, specialty, description, image, whatsapp, certif
             </a>
           </div>
 
-          <div className="pt-8 flex gap-8 border-t border-white/5">
-            <div>
-              <p className="text-3xl font-bold text-white">{statYearsExp || '+10'}</p>
-              <p className="text-xs text-slate-500 uppercase tracking-wider">Anos Exp.</p>
+          {statYearsExp && (
+            <div className="pt-8 border-t border-white/5">
+              <p className="text-3xl font-bold text-white">{statYearsExp}</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Anos de Experiencia</p>
             </div>
-            <div>
-              <p className="text-3xl font-bold text-white">{statPatients || '500+'}</p>
-              <p className="text-xs text-slate-500 uppercase tracking-wider">Pacientes</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-white">{statSuccess || '98%'}</p>
-              <p className="text-xs text-slate-500 uppercase tracking-wider">Exito</p>
-            </div>
-          </div>
+          )}
         </motion.div>
 
         <motion.div

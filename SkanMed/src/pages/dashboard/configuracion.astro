@@ -77,6 +77,7 @@ if (Astro.request.method === "POST") {
       const address = data.get("address")?.toString();
       let maps_url = data.get("maps_url")?.toString()?.trim() || '';
       const email_contact = data.get("email_contact")?.toString();
+      const linkedin_url = data.get("linkedin_url")?.toString()?.trim() || null;
 
       // Extract URL from iframe if user pasted the full embed code
       if (maps_url.includes('<iframe')) {
@@ -91,6 +92,7 @@ if (Astro.request.method === "POST") {
             address: address || null,
             google_maps_url: maps_url || null,
             email_contact: email_contact || null,
+            linkedin_url,
           })
           .where(eq(contactInfo.id, contact.id));
       } else {
@@ -100,6 +102,7 @@ if (Astro.request.method === "POST") {
           address: address || null,
           google_maps_url: maps_url || null,
           email_contact: email_contact || null,
+          linkedin_url,
         });
       }
 
@@ -295,6 +298,11 @@ const tab = Astro.url.searchParams.get('tab') || 'perfil';
         <div class="space-y-1.5">
           <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Email de Contacto Público</label>
           <input type="email" name="email_contact" value={contact?.email_contact || ''} class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">LinkedIn</label>
+          <input type="url" name="linkedin_url" value={contact?.linkedin_url || ''} placeholder="https://www.linkedin.com/in/..." class="w-full bg-skan-950 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:border-skan-500 focus:outline-none transition-colors" />
         </div>
       </div>
 

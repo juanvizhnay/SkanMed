@@ -1,14 +1,22 @@
 import React from 'react';
-import { MapPin, Phone, Mail, Clock } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Linkedin } from 'lucide-react';
 
 interface ContactProps {
   address?: string | null;
   phone?: string | null;
   email?: string | null;
   mapUrl?: string | null;
+  linkedin?: string | null;
 }
 
-export const Contact = ({ address, phone, email, mapUrl }: ContactProps) => {
+function cleanPhone(num: string | null | undefined): string {
+  if (!num) return '';
+  return num.replace(/[^0-9]/g, '');
+}
+
+export const Contact = ({ address, phone, email, mapUrl, linkedin }: ContactProps) => {
+  const waNumber = cleanPhone(phone);
+
   return (
     <section className="py-24 bg-skan-900 relative" id="contacto">
       <div className="container mx-auto px-6">
@@ -30,15 +38,29 @@ export const Contact = ({ address, phone, email, mapUrl }: ContactProps) => {
                 </div>
               </div>
 
-              <div className="flex gap-6 group">
-                <div className="w-12 h-12 bg-skan-950 border border-white/10 rounded-xl flex items-center justify-center shrink-0 group-hover:border-skan-500/50 transition-colors">
-                  <Phone className="text-skan-400" size={24} />
+              {phone && (
+                <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer" className="flex gap-6 group cursor-pointer">
+                  <div className="w-12 h-12 bg-skan-950 border border-white/10 rounded-xl flex items-center justify-center shrink-0 group-hover:border-green-500/50 transition-colors">
+                    <Phone className="text-skan-400 group-hover:text-green-400 transition-colors" size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-white mb-1 group-hover:text-green-400 transition-colors">Teléfono & WhatsApp</h4>
+                    <p className="text-slate-400 text-sm">{phone}</p>
+                  </div>
+                </a>
+              )}
+
+              {!phone && (
+                <div className="flex gap-6 group">
+                  <div className="w-12 h-12 bg-skan-950 border border-white/10 rounded-xl flex items-center justify-center shrink-0">
+                    <Phone className="text-skan-400" size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-white mb-1">Teléfono & WhatsApp</h4>
+                    <p className="text-slate-400 text-sm">No registrado</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-lg font-bold text-white mb-1">Teléfono & WhatsApp</h4>
-                  <p className="text-slate-400 text-sm">{phone || "No registrado"}</p>
-                </div>
-              </div>
+              )}
 
               <div className="flex gap-6 group">
                 <div className="w-12 h-12 bg-skan-950 border border-white/10 rounded-xl flex items-center justify-center shrink-0 group-hover:border-skan-500/50 transition-colors">
@@ -46,9 +68,25 @@ export const Contact = ({ address, phone, email, mapUrl }: ContactProps) => {
                 </div>
                 <div>
                   <h4 className="text-lg font-bold text-white mb-1">Correo Electrónico</h4>
-                  <p className="text-slate-400 text-sm">{email || "No registrado"}</p>
+                  {email ? (
+                    <a href={`mailto:${email}`} className="text-slate-400 text-sm hover:text-skan-400 transition-colors">{email}</a>
+                  ) : (
+                    <p className="text-slate-400 text-sm">No registrado</p>
+                  )}
                 </div>
               </div>
+
+              {linkedin && (
+                <a href={linkedin} target="_blank" rel="noopener noreferrer" className="flex gap-6 group cursor-pointer">
+                  <div className="w-12 h-12 bg-skan-950 border border-white/10 rounded-xl flex items-center justify-center shrink-0 group-hover:border-blue-500/50 transition-colors">
+                    <Linkedin className="text-skan-400 group-hover:text-blue-400 transition-colors" size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">LinkedIn</h4>
+                    <p className="text-slate-400 text-sm">Ver perfil profesional</p>
+                  </div>
+                </a>
+              )}
             </div>
 
             <div className="mt-12 p-6 bg-skan-950/50 rounded-2xl border border-white/5">
