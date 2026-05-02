@@ -1,42 +1,42 @@
 # SkanMed Platform
 
-Plataforma SaaS para médicos que combina una landing page pública personalizada con un sistema privado de gestión clínica. Todo en un único proyecto Astro desplegado en Cloudflare Pages bajo `skanmed.net`.
+SaaS platform for doctors that combines a personalized public landing page with a private clinical management system. All in a single Astro project deployed on Cloudflare Pages under `skanmed.net`.
 
 ---
 
-## Arquitectura
+## Architecture
 
-Un solo proyecto Astro (SSR) con todas las rutas bajo el mismo dominio:
+A single Astro project (SSR) with all routes under the same domain:
 
-| Ruta | Descripción |
+| Route | Description |
 |---|---|
-| `skanmed.net/` | Landing general de la plataforma |
-| `skanmed.net/login` | Inicio de sesión |
-| `skanmed.net/register` | Registro de nuevos médicos |
-| `skanmed.net/dashboard` | Panel privado del médico |
-| `skanmed.net/[slug]` | Landing pública del médico |
-| `skanmed.net/[slug]/perfil` | Trayectoria profesional del médico |
-| `skanmed.net/[slug]/casos` | Casos clínicos públicos del médico |
+| `skanmed.net/` | Platform's general landing page |
+| `skanmed.net/login` | Sign in |
+| `skanmed.net/register` | New doctor registration |
+| `skanmed.net/dashboard` | Doctor's private panel |
+| `skanmed.net/[slug]` | Doctor's public landing page |
+| `skanmed.net/[slug]/perfil` | Doctor's professional background |
+| `skanmed.net/[slug]/casos` | Doctor's public clinical cases |
 
 ---
 
-## Stack Tecnológico
+## Tech Stack
 
-| Capa | Tecnología |
+| Layer | Technology |
 |---|---|
 | Framework | Astro (SSR) + React Islands |
-| Estilos | Tailwind CSS |
-| Base de datos | PostgreSQL en [Neon](https://neon.tech) |
+| Styling | Tailwind CSS |
+| Database | PostgreSQL on [Neon](https://neon.tech) |
 | ORM | Drizzle ORM |
-| Autenticación | JWT (`jose`) + bcryptjs |
-| Rate limiting / caché | PostgreSQL (tablas dedicadas) |
-| Correos | [Resend](https://resend.com) |
-| Almacenamiento de imágenes | Cloudflare R2 |
-| Despliegue | Cloudflare Pages |
+| Authentication | JWT (`jose`) + bcryptjs |
+| Rate limiting / cache | PostgreSQL (dedicated tables) |
+| Email | [Resend](https://resend.com) |
+| Image storage | Cloudflare R2 |
+| Deployment | Cloudflare Pages |
 
 ---
 
-## Inicio Rápido (Desarrollo Local)
+## Quick Start (Local Development)
 
 ```bash
 cd SkanMed
@@ -44,38 +44,38 @@ npm install
 npm run dev
 ```
 
-Abre `http://localhost:4321`
+Open `http://localhost:4321`
 
 ---
 
-## Configuración Inicial
+## Initial Setup
 
-### 1. Base de Datos (Neon PostgreSQL)
+### 1. Database (Neon PostgreSQL)
 
-1. Crea un proyecto en [console.neon.tech](https://console.neon.tech)
-2. En el SQL Editor, ejecuta en orden:
-   - `SkanMed/SkanMed_DB.sql` — crea todas las tablas
-   - `SkanMed/db_auth_migration.sql` — agrega columnas de autenticación
+1. Create a project at [console.neon.tech](https://console.neon.tech)
+2. In the SQL Editor, run in order:
+   - `SkanMed/SkanMed_DB.sql` — creates all tables
+   - `SkanMed/db_auth_migration.sql` — adds authentication columns
 
-### 2. Variables de Entorno
+### 2. Environment Variables
 
-Crea `SkanMed/.env` basándote en `SkanMed/.env.example`:
+Create `SkanMed/.env` based on `SkanMed/.env.example`:
 
 ```properties
-# Base de datos
+# Database
 DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
-# Autenticación
-JWT_SECRET=una_cadena_aleatoria_de_64_caracteres
+# Authentication
+JWT_SECRET=a_random_64_character_string
 
-# Resend (correos de verificación y recuperación)
+# Resend (verification and recovery emails)
 RESEND_API_KEY=re_xxxxxxxxxxxx
 RESEND_FROM_EMAIL=noreply@yourdomain.com
 
-# URL base (para links en correos)
+# Base URL (for links in emails)
 FRONTEND_URL=http://localhost:4321
 
-# Cloudflare R2 (subida de imágenes)
+# Cloudflare R2 (image uploads)
 R2_ACCOUNT_ID=your_account_id
 R2_ACCESS_KEY_ID=your_access_key_id
 R2_SECRET_ACCESS_KEY=your_secret_access_key
@@ -84,89 +84,88 @@ R2_BUCKET_NAME=your_bucket_name
 
 ---
 
-## Estructura del Proyecto
+## Project Structure
 
 ```
 SkanMed/
 ├── src/
 │   ├── pages/
-│   │   ├── index.astro              # Landing general
-│   │   ├── login.astro              # Inicio de sesión
-│   │   ├── register.astro           # Registro
-│   │   ├── verify-email.astro       # Verificación de correo
-│   │   ├── forgot-password.astro    # Recuperación de contraseña
+│   │   ├── index.astro              # General landing page
+│   │   ├── login.astro              # Sign in
+│   │   ├── register.astro           # Registration
+│   │   ├── verify-email.astro       # Email verification
+│   │   ├── forgot-password.astro    # Password recovery
 │   │   ├── reset-password.astro
 │   │   ├── logout.astro
-│   │   ├── [slug]/                  # Landing pública del médico
+│   │   ├── [slug]/                  # Doctor's public landing
 │   │   │   ├── index.astro
 │   │   │   ├── perfil.astro
 │   │   │   └── casos.astro
-│   │   ├── dashboard/               # Panel privado
-│   │   │   ├── index.astro          # Vista general
-│   │   │   ├── configuracion.astro  # Perfil y configuración
-│   │   │   ├── pacientes/           # CRUD pacientes, consultas, recetas
-│   │   │   └── operaciones/         # CRUD operaciones quirúrgicas
+│   │   ├── dashboard/               # Private panel
+│   │   │   ├── index.astro          # Overview
+│   │   │   ├── configuracion.astro  # Profile and settings
+│   │   │   ├── pacientes/           # Patients, consultations, prescriptions CRUD
+│   │   │   └── operaciones/         # Surgical operations CRUD
 │   │   └── api/
-│   │       └── image/               # Proxy seguro de imágenes R2
+│   │       └── image/               # Secure R2 image proxy
 │   ├── layouts/
-│   │   ├── DashboardLayout.astro    # Layout del panel (sidebar responsivo)
-│   │   ├── DoctorLayout.astro       # Layout de landing del médico
-│   │   └── MainLayout.astro         # Layout de landing general
+│   │   ├── DashboardLayout.astro    # Panel layout (responsive sidebar)
+│   │   ├── DoctorLayout.astro       # Doctor's landing layout
+│   │   └── MainLayout.astro         # General landing layout
 │   ├── components/
 │   │   ├── landing/                 # Hero, Contact, PublicOperations
-│   │   ├── PasswordInput.tsx        # Input con toggle de visibilidad
-│   │   ├── ProfileImageUploader.tsx # Subida de foto de perfil a R2
-│   │   ├── ImageUploader.tsx        # Subida de imágenes para operaciones
-│   │   └── CopyButton.tsx           # Copiar URL al portapapeles
+│   │   ├── PasswordInput.tsx        # Input with visibility toggle
+│   │   ├── ProfileImageUploader.tsx # Profile picture upload to R2
+│   │   ├── ImageUploader.tsx        # Image upload for operations
+│   │   └── CopyButton.tsx           # Copy URL to clipboard
 │   ├── lib/
-│   │   ├── db.ts                    # Conexión a Neon (connection pool)
-│   │   ├── schema.ts                # Esquema completo de la BD (Drizzle)
-│   │   ├── doctors.ts               # Queries públicas de médicos
-│   │   ├── auth/                    # JWT, sesiones, correos
-│   │   ├── security/                # Protección registro/login (rate limit)
-│   │   └── storage/                 # Cliente Cloudflare R2
+│   │   ├── db.ts                    # Neon connection (connection pool)
+│   │   ├── schema.ts                # Full DB schema (Drizzle)
+│   │   ├── doctors.ts               # Public doctor queries
+│   │   ├── auth/                    # JWT, sessions, emails
+│   │   ├── security/                # Register/login protection (rate limit)
+│   │   └── storage/                 # Cloudflare R2 client
 │   └── styles/
 │       └── global.css
-├── .env                             # Variables locales (no subir a git)
-├── .env.example                     # Plantilla de variables
+├── .env                             # Local variables (do not commit)
+├── .env.example                     # Variables template
 ├── astro.config.mjs
 ├── tailwind.config.mjs
-└── wrangler.toml                    # Config Cloudflare Workers
+└── wrangler.toml                    # Cloudflare Workers config
 ```
 
 ---
 
-## Flujo de Registro
+## Registration Flow
 
-1. Médico se registra en `/register`
-2. Los datos se guardan temporalmente en PostgreSQL
-3. Resend envía un correo con link de verificación
-4. Al hacer clic en el link, la cuenta se crea en PostgreSQL y se inicia sesión automáticamente
-5. El médico es redirigido directo al `/dashboard`
+1. Doctor signs up at `/register`
+2. Data is temporarily stored in PostgreSQL
+3. Resend sends an email with a verification link
+4. When clicking the link, the account is created in PostgreSQL and the session starts automatically
+5. The doctor is redirected straight to the `/dashboard`
 
 ---
 
-## Servicios Externos Necesarios
+## Required External Services
 
-| Servicio | Uso | Link |
+| Service | Use | Link |
 |---|---|---|
-| [Neon](https://neon.tech) | Base de datos PostgreSQL | Gratis hasta 0.5 GB |
-
-| [Resend](https://resend.com) | Envío de correos | Gratis hasta 3k correos/mes |
-| [Cloudflare R2](https://cloudflare.com) | Almacenamiento de imágenes | ~$0.015/GB/mes, egress gratis |
-| [Cloudflare Pages](https://pages.cloudflare.com) | Hosting y despliegue | Gratis |
+| [Neon](https://neon.tech) | PostgreSQL database | Free up to 0.5 GB |
+| [Resend](https://resend.com) | Email delivery | Free up to 3k emails/month |
+| [Cloudflare R2](https://cloudflare.com) | Image storage | ~$0.015/GB/month, free egress |
+| [Cloudflare Pages](https://pages.cloudflare.com) | Hosting and deployment | Free |
 
 ---
 
-## Despliegue en Cloudflare Pages
+## Deployment on Cloudflare Pages
 
 **Build settings:**
 - Build command: `cd SkanMed && npm install && npm run build`
 - Build output: `SkanMed/dist`
 
-**Compatibility flags** (en Settings > Runtime):
+**Compatibility flags** (in Settings > Runtime):
 - `nodejs_compat`
 - `nodejs_compat_populate_process_env`
 - Compatibility date: `2025-04-01`
 
-**Variables de entorno:** configurar las mismas del `.env` en el panel de Cloudflare Pages.
+**Environment variables:** configure the same ones from `.env` in the Cloudflare Pages panel.
